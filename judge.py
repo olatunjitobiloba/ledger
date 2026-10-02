@@ -71,8 +71,26 @@ def load_dotenv(path: str = ".env") -> None:
 
     for line in lines:
         line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+        if not line or line.startswith("#"):
             continue
+
+        if "=" not in line:
+            # A bare key with no variable name. Infer the provider from the
+            # prefix rather than failing, since that is the common mistake.
+            if line.startswith("sk-or-v1-"):
+                name, value = "OPENROUTER_API_KEY", line
+            elif line.startswith("sk-"):
+                name, value = "OPENAI_API_KEY", line
+                print(
+                    f"Warning: .env line starting {line[:6]}... has no variable name. "
+                    "Assuming OPENAI_API_KEY. Write 'OPENROUTER_API_KEY=<key>' for OpenRouter.",
+                    file=sys.stderr,
+                )
+            else:
+                continue
+            os.environ.setdefault(name, value)
+            continue
+
         name, _, value = line.partition("=")
         name = name.strip()
         value = value.strip().strip("'\"")
