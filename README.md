@@ -21,19 +21,42 @@ pip install -r requirements.txt
 cp .env.example .env      # then put your real key in .env
 ```
 
-`.env` is gitignored. Do not paste keys into chat, issues, or commits.
+`judge.py` loads `.env` itself, so there is nothing else to export. A key in `.env`
+is gitignored and never has to appear in a shell command, a commit, or a chat message.
+
+**OpenRouter** (recommended, since that is the account in hand):
+
+```
+OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+**OpenAI** also works:
+
+```
+OPENAI_API_KEY=sk-...
+```
+
+The judge model defaults to `gpt-4o-mini` and is overridable with `--model`. OpenRouter
+model ids look like `anthropic/claude-sonnet-4`, so pass the full id:
+
+```bash
+python judge.py --model anthropic/claude-sonnet-4
+```
+
+> If a key has ever been pasted into a chat, an issue, or a commit, treat it as
+> compromised and revoke it. Rotation is cheap; a leaked key is not.
 
 ## Run it
 
 ```bash
-python judge.py              # live, needs OPENAI_API_KEY in the environment
+python judge.py              # live, reads .env
 python judge.py --mock       # offline dry run, no key, no network
 python judge.py --repeat 3   # score-drift check at temperature=0
-python -m unittest test_judge  # 16 tests, no network
+python -m unittest test_judge  # 21 tests, no network
 ```
 
 Exit codes: `0` judge discriminated, `1` discrimination check failed, `2` setup
-problem (missing key or missing dependency).
+problem (missing key or missing dependency), `3` API call failed.
 
 ## Reading the output
 
@@ -67,6 +90,9 @@ judge should cost you one data point, not the pipeline.
 **Lazy client.** `_get_client()` builds the OpenAI client on first call, so
 importing `judge` never requires the package or the env var. Tests and Day 4's
 database wiring import this module without credentials.
+
+**`load_dotenv()`** reads `.env` without adding a dependency. A pre-existing
+environment variable wins over the file, so an export in CI still takes priority.
 
 **`--mock` scores nothing.** It exists to verify wiring and the parse path with
 no key and no network. Never treat its numbers as evaluations.
