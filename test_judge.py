@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
+import tempfile
 import unittest
 
 from judge import (
     _parse_judge_payload,
     check_discrimination,
     judge_output_mock,
+    load_dotenv,
     run_cases,
     TEST_CASES,
 )
@@ -99,6 +102,53 @@ class TestFlagCoercion(unittest.TestCase):
             '{"score": 0.4, "reasoning": "x", "flags": [1, null]}'
         )
         self.assertEqual(result["flags"], ["1", "None"])
+
+
+class TestLoadDotenv(unittest.TestCase):
+    """The .env path is how a key avoids ever appearing in chat, so it matters."""
+
+    def setUp(self):
+        self.saved = dict(os.environ)
+
+    def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self.saved)
+
+    def _write(self, body):
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".env", delete=False, encoding="utf-8"
+        )
+        handle.write(body)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return handle.name
+
+    def test_reads_pairs_and_skips_comments_and_blanks(self):
+        path = self._write(
+            "# a comment\n\nJUDGE_TEST_KEY=abc123\nJUDGE_TEST_OTHER = spaced \n"
+        )
+        load_dotenv(path)
+        self.assertEqual(os.environ["JUDGE_TEST_KEY"], "abc123")
+        self.assertEqual(os.environ["JUDGE_TEST_OTHER"], "spaced")
+
+    def test_strips_surrounding_quotes(self):
+        path = self._write('JUDGE_TEST_Q="quoted-value"\n')
+        load_dotenv(path)
+        self.assertEqual(os.environ["JUDGE_TEST_Q"], "quoted-value")
+
+    def test_preserves_equals_inside_value(self):
+        path = self._write("JUDGE_TEST_B64=abc=def==\n")
+        load_dotenv(path)
+        self.assertEqual(os.environ["JUDGE_TEST_B64"], "abc=def==")
+
+    def test_existing_env_var_wins_over_file(self):
+        os.environ["JUDGE_TEST_KEY"] = "from-shell"
+        path = self._write("JUDGE_TEST_KEY=from-file\n")
+        load_dotenv(path)
+        self.assertEqual(os.environ["JUDGE_TEST_KEY"], "from-shell")
+
+    def test_missing_file_is_not_an_error(self):
+        load_dotenv("definitely-not-a-real-file-9182.env")
 
 
 class TestHarness(unittest.TestCase):
