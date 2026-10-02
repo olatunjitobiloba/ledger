@@ -80,6 +80,31 @@ def load_dotenv(path: str = ".env") -> None:
             os.environ[name] = value
 
 
+def _mask(value: str) -> str:
+    """Render a secret as a short fingerprint, never the whole thing."""
+    return f"{value[:6]}...{value[-2:]}" if len(value) > 12 else "***"
+
+
+def _key_provider_warning(key: str, provider: str) -> str | None:
+    """Catch a key that belongs to the other provider before spending a call.
+
+    The two providers reject each other's keys with unhelpful 401s, so a shape
+    check is cheaper and clearer than finding out from an auth error.
+    """
+    if provider == "openrouter" and not key.startswith("sk-or-v1-"):
+        return (
+            f"Key {_mask(key)} does not look like an OpenRouter key "
+            "(those start with 'sk-or-v1-'). If it is an OpenAI key, set "
+            "OPENAI_API_KEY instead of OPENROUTER_API_KEY."
+        )
+    if provider == "openai" and key.startswith("sk-or-v1-"):
+        return (
+            f"Key {_mask(key)} looks like an OpenRouter key. Set "
+            "OPENROUTER_API_KEY instead of OPENAI_API_KEY."
+        )
+    return None
+
+
 def _get_client() -> Any:
     """Build the OpenAI client lazily.
 
@@ -110,6 +135,12 @@ def _get_client() -> Any:
             "No API key found. Copy .env.example to .env, put your key in it, "
             "and run again. Never paste a key into chat."
         )
+
+    provider = "openrouter" if api_key is os.environ.get("OPENROUTER_API_KEY") else "openai"
+    warning = _key_provider_warning(api_key, provider)
+    if warning:
+        print(f"Warning: {warning}", file=sys.stderr)
+
     return OpenAI(api_key=api_key, base_url=base_url)
 
 
