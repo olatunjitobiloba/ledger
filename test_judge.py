@@ -180,6 +180,30 @@ class TestLoadDotenv(unittest.TestCase):
     def test_missing_file_is_not_an_error(self):
         load_dotenv("definitely-not-a-real-file-9182.env")
 
+    def test_bare_openrouter_key_is_inferred(self):
+        path = self._write("sk-or-v1-abcdef0123456789\n")
+        load_dotenv(path)
+        self.assertEqual(os.environ["OPENROUTER_API_KEY"], "sk-or-v1-abcdef0123456789")
+
+    def test_bare_openai_key_is_inferred_with_a_warning(self):
+        path = self._write("sk-abcdef0123456789\n")
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            load_dotenv(path)
+        self.assertEqual(os.environ["OPENAI_API_KEY"], "sk-abcdef0123456789")
+        self.assertIn("no variable name", err.getvalue())
+
+    def test_bare_key_does_not_clobber_explicit_variable(self):
+        os.environ["OPENROUTER_API_KEY"] = "already-set"
+        path = self._write("sk-or-v1-abcdef0123456789\n")
+        load_dotenv(path)
+        self.assertEqual(os.environ["OPENROUTER_API_KEY"], "already-set")
+
+    def test_unrecognised_bare_line_is_ignored(self):
+        path = self._write("just some prose here\n")
+        with contextlib.redirect_stderr(io.StringIO()):
+            load_dotenv(path)
+        self.assertNotIn("just some prose here", os.environ.values())
+
 
 class TestHarness(unittest.TestCase):
     def test_mock_scores_every_case_without_erroring(self):
