@@ -49,14 +49,19 @@ python judge.py --model anthropic/claude-sonnet-4
 ## Run it
 
 ```bash
-python judge.py              # live, reads .env
-python judge.py --mock       # offline dry run, no key, no network
-python judge.py --repeat 3   # score-drift check at temperature=0
-python -m unittest test_judge  # 21 tests, no network
+python check_key.py           # verify the key first, costs one request
+python judge.py               # live, reads .env
+python judge.py --mock        # offline dry run, no key, no network
+python judge.py --repeat 3    # score-drift check at temperature=0
+python -m unittest test_judge  # 26 tests, no network
 ```
 
+`check_key.py` exists because a dead key and a broken script look identical from the
+outside. It prints the HTTP status, never the key, and distinguishes the four cases that
+matter: wrong provider, invalid or revoked, valid but no credit, and unreachable.
+
 Exit codes: `0` judge discriminated, `1` discrimination check failed, `2` setup
-problem (missing key or missing dependency), `3` API call failed.
+problem, `3` API call failed.
 
 ## Reading the output
 
@@ -102,7 +107,8 @@ no key and no network. Never treat its numbers as evaluations.
 | File | Purpose |
 | --- | --- |
 | `judge.py` | Judge prompt, `judge_output()`, parse path, test harness |
-| `test_judge.py` | Unit tests for the parse and discrimination logic |
+| `check_key.py` | One-request key check, separates dead key from broken code |
+| `test_judge.py` | Unit tests for the parse, harness, and diagnostic logic |
 | `requirements.txt` | `openai` |
 | `.env.example` | Key template. Copy to `.env` |
 
