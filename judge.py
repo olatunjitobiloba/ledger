@@ -56,6 +56,30 @@ RESPONSE:
 Evaluate the RESPONSE above."""
 
 
+def load_dotenv(path: str = ".env") -> None:
+    """Load KEY=VALUE pairs from a local .env file into os.environ.
+
+    Exists so an API key can live on disk instead of in a shell command or a
+    chat transcript. Existing environment variables win, so a real env var is
+    never clobbered by the file.
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.readlines()
+    except FileNotFoundError:
+        return
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        name = name.strip()
+        value = value.strip().strip("'\"")
+        if name and name not in os.environ:
+            os.environ[name] = value
+
+
 def _get_client() -> Any:
     """Build the OpenAI client lazily.
 
@@ -71,12 +95,22 @@ def _get_client() -> Any:
         ) from exc
 
     api_key = os.environ.get("OPENAI_API_KEY")
+    base_url = os.environ.get("OPENAI_BASE_URL")
+
+    if not api_key:
+        router_key = os.environ.get("OPENROUTER_API_KEY")
+        if router_key:
+            # OpenRouter speaks the same chat.completions dialect, so the same
+            # client works with a different base URL and no other changes.
+            api_key = router_key
+            base_url = base_url or "https://openrouter.ai/api/v1"
+
     if not api_key:
         raise RuntimeError(
-            "OPENAI_API_KEY is not set. Copy .env.example to .env, put your key "
-            "in .env, and load it into your environment before running."
+            "No API key found. Copy .env.example to .env, put your key in it, "
+            "and run again. Never paste a key into chat."
         )
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, base_url=base_url)
 
 
 def _parse_judge_payload(content: str | None) -> dict[str, Any]:
@@ -308,6 +342,7 @@ def check_consistency(judge_fn: Any, cases: list[dict[str, Any]], repeat: int) -
 
 
 def main(argv: list[str] | None = None) -> int:
+    global JUDGE_MODEL
     parser = argparse.ArgumentParser(description="Judge a set of prompt/response pairs.")
     parser.add_argument(
         "--mock",
@@ -320,7 +355,16 @@ def main(argv: list[str] | None = None) -> int:
         default=1,
         help="Run the set N times to check score stability at temperature=0.",
     )
+    parser.add_argument(
+        "--model",
+        default=JUDGE_MODEL,
+        help=f"Judge model id (default: {JUDGE_MODEL}).",
+    )
     args = parser.parse_args(argv)
+
+    JUDGE_MODEL = args.model
+
+    load_dotenv()
 
     judge_fn = judge_output_mock if args.mock else judge_output
     if args.mock:
