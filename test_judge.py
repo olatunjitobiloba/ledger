@@ -15,6 +15,8 @@ import tempfile
 import unittest
 
 from judge import (
+    _key_provider_warning,
+    _mask,
     _parse_judge_payload,
     check_discrimination,
     judge_output_mock,
@@ -102,6 +104,34 @@ class TestFlagCoercion(unittest.TestCase):
             '{"score": 0.4, "reasoning": "x", "flags": [1, null]}'
         )
         self.assertEqual(result["flags"], ["1", "None"])
+
+
+class TestKeyDiagnostics(unittest.TestCase):
+    """A key from the wrong provider costs a confusing 401, so catch it early."""
+
+    def test_mask_never_reveals_the_whole_secret(self):
+        secret = "sk-or-v1-abcdefghijklmnop"
+        masked = _mask(secret)
+        self.assertNotIn("efghijklmnop", masked)
+        self.assertTrue(masked.startswith("sk-or-"))
+        self.assertTrue(masked.endswith("op"))
+
+    def test_mask_hides_short_values_entirely(self):
+        self.assertEqual(_mask("short"), "***")
+
+    def test_openai_style_key_flagged_when_used_as_openrouter(self):
+        warning = _key_provider_warning("sk-abc123def456ghi789", "openrouter")
+        self.assertIsNotNone(warning)
+        self.assertIn("sk-or-v1-", warning)
+
+    def test_openrouter_style_key_flagged_when_used_as_openai(self):
+        warning = _key_provider_warning("sk-or-v1-abcdef", "openai")
+        self.assertIsNotNone(warning)
+        self.assertIn("OPENROUTER_API_KEY", warning)
+
+    def test_matching_provider_produces_no_warning(self):
+        self.assertIsNone(_key_provider_warning("sk-or-v1-abcdef", "openrouter"))
+        self.assertIsNone(_key_provider_warning("sk-abc123def456", "openai"))
 
 
 class TestLoadDotenv(unittest.TestCase):
