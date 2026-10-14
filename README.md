@@ -14,6 +14,23 @@ returns a plain dict:
 It is a standalone module on purpose. No Postgres, no SDK wrapper, no project
 imports. Call it from anywhere; swap it out later without touching callers.
 
+## Data model & API contract
+
+Day 1 froze the storage shape and the wire shape so the judge, the SDK, and the backend
+cannot drift apart:
+
+- `db/schema.sql` — `traces` and `spans`. Parent-child spans model agent/RAG steps
+  without a redesign later; `capture_prompt` is a privacy switch baked into the schema,
+  and `eval_score` / `injection_risk_score` exist up front so the judge can populate them
+  with no migration.
+- `docs/api-contract.md` — the frozen `POST /v1/spans` contract and the four decisions
+  locked with it: trace auto-created on first span, server-computed cost, the privacy
+  flag, and `metadata` reserved for genuinely optional extras.
+- `contract/span-ingest.schema.json` — the same contract as a JSON Schema, so validation
+  is mechanical instead of a matter of reading prose.
+
+Apply the schema with `psql "$DATABASE_URL" -f db/schema.sql`.
+
 ## Setup
 
 ```bash
@@ -24,20 +41,20 @@ cp .env.example .env      # then put your real key in .env
 `judge.py` loads `.env` itself, so there is nothing else to export. A key in `.env`
 is gitignored and never has to appear in a shell command, a commit, or a chat message.
 
-**OpenRouter** (recommended, since that is the account in hand):
-
-```
-OPENROUTER_API_KEY=sk-or-v1-...
-```
-
-**OpenAI** also works:
+**OpenAI** (the account in hand):
 
 ```
 OPENAI_API_KEY=sk-...
 ```
 
-The judge model defaults to `gpt-4o-mini` and is overridable with `--model`. OpenRouter
-model ids look like `anthropic/claude-sonnet-4`, so pass the full id:
+**OpenRouter** also works:
+
+```
+OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+The judge model defaults to `gpt-4o-mini` and is overridable with `--model`. On
+OpenRouter, model ids look like `anthropic/claude-sonnet-4`, so pass the full id:
 
 ```bash
 python judge.py --model anthropic/claude-sonnet-4
@@ -58,7 +75,9 @@ python -m unittest test_judge  # 26 tests, no network
 
 `check_key.py` exists because a dead key and a broken script look identical from the
 outside. It prints the HTTP status, never the key, and distinguishes the four cases that
-matter: wrong provider, invalid or revoked, valid but no credit, and unreachable.
+matter: wrong provider, invalid or revoked, valid but no credit, and unreachable. A zero
+balance arrives as `402` on OpenRouter and as `429` (`insufficient_quota`) on OpenAI;
+both are reported as "no credit", never as a bad key.
 
 Exit codes: `0` judge discriminated, `1` discrimination check failed, `2` setup
 problem, `3` API call failed.
@@ -109,6 +128,9 @@ no key and no network. Never treat its numbers as evaluations.
 | `judge.py` | Judge prompt, `judge_output()`, parse path, test harness |
 | `check_key.py` | One-request key check, separates dead key from broken code |
 | `test_judge.py` | Unit tests for the parse, harness, and diagnostic logic |
+| `db/schema.sql` | Trace/span Postgres schema. Day 1, frozen |
+| `docs/api-contract.md` | Frozen SDK -> backend ingestion contract |
+| `contract/span-ingest.schema.json` | Machine-checkable version of the contract |
 | `requirements.txt` | `openai` |
 | `.env.example` | Key template. Copy to `.env` |
 
