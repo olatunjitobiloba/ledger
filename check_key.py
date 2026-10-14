@@ -55,12 +55,16 @@ def check(provider: str, key: str) -> int:
         return 0
     except urllib.error.HTTPError as exc:
         print(f"FAIL  {provider} rejected key {_mask(key)} (HTTP {exc.code})")
-        detail = exc.read().decode(errors="replace")[:200].strip()
-        print(f"      {detail}")
+        body = exc.read().decode(errors="replace")
+        print(f"      {body[:200].strip()}")
         if exc.code in (401, 403):
             print("      The key is invalid or revoked. Generate a new one.")
-        elif exc.code == 402:
+        elif exc.code == 402 or "insufficient_quota" in body:
+            # OpenRouter reports a zero balance as 402; OpenAI uses 429 with an
+            # "insufficient_quota" error type. Same cause, different status.
             print("      The key is valid but the account has no credit.")
+        elif exc.code == 429:
+            print("      Rate limited. Retry shortly, or check your account quota.")
         return 1
     except Exception as exc:  # noqa: BLE001 - CLI boundary, report anything
         print(f"FAIL  {provider} unreachable: {type(exc).__name__}: {exc}")
