@@ -1,118 +1,119 @@
-# ledger
+# Ledger
 
-LLM evaluation harness. Day 2: the judge prompt and scoring loop.
+Ledger is a lightweight, asynchronous observability and evaluation gate for
+LLM applications. It records trace cost and injection-risk metadata without
+blocking the host request, then evaluates versioned golden sets in a background
+worker to detect regressions.
 
-## What this is
+## What it delivers
 
-`judge.py` scores a `(prompt, response)` pair with GPT-4o-mini as the judge and
-returns a plain dict:
+- Fire-and-forget Python SDK and `202 Accepted` ingestion endpoint.
+- Trace/span cost attribution: provider-reported actual cost when supplied and
+  configurable per-model estimated cost.
+- Versioned golden-set evaluation using GPT-4o-mini at temperature zero.
+- Regression gate using `result_score < baseline_score - variance`, including
+  worst-case examples and persisted alerts.
+- Field-level privacy: project capture controls, client/server redaction, and
+  retention cleanup.
+- Non-blocking heuristic prompt-injection tags.
+- Multi-project API-key isolation, a database-backed queue, retries, and a
+  dead-letter job state.
 
-```python
-{"score": 0.85, "reasoning": "one sentence", "flags": ["incomplete"]}
+## Architecture
+
+```text
+Application → Ledger SDK → POST /v1/ingest → Postgres job queue
+                                                ↓
+                              API ← Postgres metadata + payload blob storage
+                                                ↓
+                                      Worker → judge → alerts
 ```
 
-It is a standalone module on purpose. No Postgres, no SDK wrapper, no project
-imports. Call it from anywhere; swap it out later without touching callers.
+The SDK deliberately ignores telemetry delivery failures; observability must
+never fail or slow the host application's AI response.
 
-## Setup
+## Quick start
+
+Requirements: Python 3.11+ and an OpenAI or OpenRouter key for live evals.
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env      # then put your real key in .env
+copy .env.example .env
+# Then set LEDGER_DATABASE_URL=sqlite:///./data/ledger.db in .env
+uvicorn ledger_api.main:app --reload
 ```
 
-`judge.py` loads `.env` itself, so there is nothing else to export. A key in `.env`
-is gitignored and never has to appear in a shell command, a commit, or a chat message.
+Open interactive API documentation at `http://127.0.0.1:8000/docs`.
 
-**OpenRouter** (recommended, since that is the account in hand):
-
-```
-OPENROUTER_API_KEY=sk-or-v1-...
-```
-
-**OpenAI** also works:
-
-```
-OPENAI_API_KEY=sk-...
-```
-
-The judge model defaults to `gpt-4o-mini` and is overridable with `--model`. OpenRouter
-model ids look like `anthropic/claude-sonnet-4`, so pass the full id:
+Run the test suite:
 
 ```bash
-python judge.py --model anthropic/claude-sonnet-4
+python -m unittest test_judge test_api -v
 ```
 
-> If a key has ever been pasted into a chat, an issue, or a commit, treat it as
-> compromised and revoke it. Rotation is cheap; a leaked key is not.
+## API workflow
 
-## Run it
+Create a project. The returned API key is shown once; store it in your secret
+manager.
 
 ```bash
-python check_key.py           # verify the key first, costs one request
-python judge.py               # live, reads .env
-python judge.py --mock        # offline dry run, no key, no network
-python judge.py --repeat 3    # score-drift check at temperature=0
-python -m unittest test_judge  # 26 tests, no network
+curl -X POST http://127.0.0.1:8000/v1/projects -H "Content-Type: application/json" -d "{\"name\": \"demo\", \"capture_prompt\": false}"
 ```
 
-`check_key.py` exists because a dead key and a broken script look identical from the
-outside. It prints the HTTP status, never the key, and distinguishes the four cases that
-matter: wrong provider, invalid or revoked, valid but no credit, and unreachable.
+Send the frozen one-span SDK contract:
 
-Exit codes: `0` judge discriminated, `1` discrimination check failed, `2` setup
-problem, `3` API call failed.
-
-## Reading the output
-
-Every run ends with a discrimination check, and that check is the point:
-
+```json
+{
+  "trace_id": null,
+  "span": {
+    "span_id": "2e00d5cc-90dc-4dc5-b1ae-bc091db46057",
+    "parent_span_id": null,
+    "span_type": "llm_call",
+    "name": "generate_response",
+    "started_at": "2026-10-01T23:00:00Z",
+    "ended_at": "2026-10-01T23:00:02Z",
+    "model": "gpt-4o-mini",
+    "prompt_tokens": 150,
+    "completion_tokens": 80,
+    "capture_prompt": false,
+    "metadata": {}
+  }
+}
 ```
---- discrimination check ---
-mean high=0.91  mean low=0.10  gap=0.81
-flags on bad answer(s): ['hallucination']
-PASS: judge discriminates.
-```
 
-Test case 2 is deliberately wrong. If the judge does not score it low, the run
-exits non-zero and the scoring criteria need rewriting. A judge that returns
-0.9+ for everything is not measuring anything.
+Submit it to `POST /v1/ingest` with `X-API-Key: <project-key>`. Ledger also
+accepts a batch `{"traces": [...]}` payload for exporter use cases.
 
-## Design notes
-
-**`response_format={"type": "json_object"}`** removes the "parse free text"
-problem. The judge returns JSON, so it lands in Postgres as columns instead of
-requiring regex scraping.
-
-**`temperature=0`** minimizes variance but does not guarantee byte-identical
-output, because the provider backend has its own nondeterminism. `--repeat`
-tells you the actual drift on your account instead of assuming it.
-
-**Graceful failure beats crashing.** `_parse_judge_payload` converts every
-malformed judge output into `score: None` plus a `judge_error` flag. A broken
-judge should cost you one data point, not the pipeline.
-
-**Lazy client.** `_get_client()` builds the OpenAI client on first call, so
-importing `judge` never requires the package or the env var. Tests and Day 4's
-database wiring import this module without credentials.
-
-**`load_dotenv()`** reads `.env` without adding a dependency. A pre-existing
-environment variable wins over the file, so an export in CI still takes priority.
-
-**`--mock` scores nothing.** It exists to verify wiring and the parse path with
-no key and no network. Never treat its numbers as evaluations.
-
-## Layout
-
-| File | Purpose |
+| Endpoint | Purpose |
 | --- | --- |
-| `judge.py` | Judge prompt, `judge_output()`, parse path, test harness |
-| `check_key.py` | One-request key check, separates dead key from broken code |
-| `test_judge.py` | Unit tests for the parse, harness, and diagnostic logic |
-| `requirements.txt` | `openai` |
-| `.env.example` | Key template. Copy to `.env` |
+| `POST /v1/projects` | Create a project and initial API key. |
+| `POST /v1/api-keys` | Issue an additional project API key. |
+| `POST /v1/ingest` | Queue trace/span telemetry; responds immediately. |
+| `GET /v1/traces/{project_id}` | List trace costs and maximum risk score. |
+| `POST /v1/eval/run` | Queue a versioned golden-set evaluation. |
+| `GET /v1/eval/runs/{project_id}` | View score, threshold, status, and worst cases. |
+| `GET /v1/alerts/{project_id}` | List regression alerts. |
 
-## Not here yet
+See [docs/deployment.md](docs/deployment.md) for Rumpty deployment and
+[migrations/001_ledger_schema.sql](migrations/001_ledger_schema.sql) for the
+reviewed PostgreSQL schema.
 
-Postgres persistence is Day 4. `flags` is deliberately categorical so it can
-become a chart dimension later.
+## Privacy and security
+
+- `capture_prompt=false` prevents prompt/response payloads from being written.
+- `redact_patterns` are applied before captured payloads are persisted; the SDK
+  can redact before data leaves the host application.
+- API keys are stored as SHA-256 hashes, not plaintext.
+- Database credentials, `.env`, and server certificates are ignored by Git.
+- In production, set a strong `LEDGER_ADMIN_TOKEN` and use TLS certificate
+  verification for PostgreSQL.
+
+## Development notes
+
+`judge.py` remains a standalone, testable judge component. Use
+`python judge.py --mock` to exercise it without a provider key. The API worker
+uses the real judge for queued evaluation runs.
+
+## License
+
+No license has been selected yet.
