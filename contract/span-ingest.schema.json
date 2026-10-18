@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ledger.local/contract/span-ingest.schema.json",
+  "title": "SpanIngestRequest",
+  "description": "Frozen Day 1 contract: what the Python SDK POSTs to the backend on POST /v1/spans. trace_id is null when the SDK is starting a new trace; the server creates the trace and returns its id. Costs are server-computed, never trusted from the client.",
+  "type": "object",
+  "required": ["span"],
+  "additionalProperties": false,
+  "properties": {
+    "trace_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Existing trace to append to, or null to auto-create a trace from this span."
+    },
+    "span": { "$ref": "#/$defs/span" }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": ["span_id", "span_type", "name", "started_at"],
+      "additionalProperties": false,
+      "properties": {
+        "span_id": { "type": "string", "format": "uuid" },
+        "parent_span_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "Parent span, or null for the root span of the trace."
+        },
+        "span_type": {
+          "type": "string",
+          "enum": ["llm_call", "tool_call", "retrieval", "judge_eval"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": ["string", "null"], "format": "date-time" },
+        "model": { "type": ["string", "null"] },
+        "prompt_tokens": { "type": ["integer", "null"], "minimum": 0 },
+        "completion_tokens": { "type": ["integer", "null"], "minimum": 0 },
+        "capture_prompt": {
+          "type": "boolean",
+          "default": true,
+          "description": "Privacy switch. When false, prompt_text/response_text must be omitted."
+        },
+        "prompt_text": { "type": ["string", "null"] },
+        "response_text": { "type": ["string", "null"] },
+        "metadata": {
+          "type": "object",
+          "description": "Genuinely optional extras only. Anything queried routinely belongs in a real column."
+        }
+      }
+    }
+  }
+}
