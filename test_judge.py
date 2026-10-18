@@ -139,6 +139,10 @@ class TestLoadDotenv(unittest.TestCase):
 
     def setUp(self):
         self.saved = dict(os.environ)
+        # These tests exercise dotenv precedence with synthetic values. A real
+        # developer key in the host environment must not affect that contract.
+        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
 
     def tearDown(self):
         os.environ.clear()
