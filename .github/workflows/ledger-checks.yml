@@ -48,7 +48,7 @@ jobs:
         run: |
           python -m py_compile \
             judge.py day3.py day4.py day5.py \
-            day6.py day7.py day8.py day9.py day11.py
+            day6.py day7.py day8.py day9.py day11.py day12.py
 
       - name: Test cost attribution
         run: python day5.py test
@@ -64,6 +64,9 @@ jobs:
 
       - name: Test commit provenance
         run: python day11.py test
+
+      - name: Test runtime binding
+        run: python day12.py test
 
   release-check:
     name: Check saved release evidence
@@ -115,9 +118,9 @@ jobs:
           print("Database secret is present and run IDs are valid.")
           PY
 
-      - name: Check commit-bound release evidence
+      - name: Check commit and runtime-bound evidence
         run: |
-          python day11.py check \
+          python day12.py check \
             --baseline "$BASELINE_RUN_ID" \
             --candidate "$CANDIDATE_RUN_ID" \
             --expected-commit "$EXPECTED_COMMIT" \
@@ -129,6 +132,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ledger-release-report-${{ github.run_id }}-${{ github.run_attempt }}
-          path: results/day11/*.json
+          path: results/day12/*.json
           if-no-files-found: warn
           retention-days: 7
