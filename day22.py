@@ -90,7 +90,9 @@ def _canonical_json(value: object) -> bytes:
 def canonical_plan_bytes(plan: dict[str, Any]) -> bytes:
     if not isinstance(plan, dict):
         raise ValueError("Plan must be an object.")
-    return _canonical_json(plan)
+    return json.dumps(
+        plan, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode()
 
 
 def manifest_bytes(manifest: dict[str, Any]) -> bytes:
@@ -148,7 +150,10 @@ def read_archive_from_bytes(
             mode = (info.external_attr >> 16) & 0xFFFF
             if info.is_dir() or info.flag_bits & 0x1 or (mode & 0o170000) == 0o120000:
                 raise ValueError("Directories and encrypted members are forbidden.")
-            if info.file_size > MAX_MEMBER_BYTES:
+            if (
+                info.file_size > MAX_MEMBER_BYTES
+                or info.compress_size > MAX_MEMBER_BYTES
+            ):
                 raise ValueError("Evidence member exceeds size limit.")
             raw_members[info.filename] = archive.read(info)
     except (zipfile.BadZipFile, OSError, RuntimeError) as exc:
@@ -498,6 +503,27 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             build_archive(self.manifest(plan, rehearsal), plan, rehearsal)
         )
         self.assertEqual(manifest["plan_sha256"], sha256(plan))
+
+    def test_unicode_plan_matches_day16_hash_and_round_trips(self):
+        plan = {"payload": {"description": "Café — réservé"}}
+        plan_bytes = canonical_plan_bytes(plan)
+        self.assertEqual(canonical_hash(plan), sha256(plan_bytes))
+        manifest = self.manifest(plan_bytes, b"report")
+        read_manifest, read_plan_bytes, read_rehearsal = read_archive_from_bytes(
+            build_archive(manifest, plan_bytes, b"report")
+        )
+        self.assertEqual(read_manifest["plan_sha256"], canonical_hash(plan))
+        self.assertEqual(read_plan_bytes, plan_bytes)
+        self.assertEqual(read_rehearsal, b"report")
+
+    def test_reject_compressed_member_over_size_limit(self):
+        archive_bytes = build_archive(self.manifest(b'{"a":1}', b"report"), b'{"a":1}', b"report")
+        with zipfile.ZipFile(__import__("io").BytesIO(archive_bytes)) as archive:
+            infos = archive.infolist()
+        infos[0].compress_size = MAX_MEMBER_BYTES + 1
+        with patch.object(zipfile.ZipFile, "infolist", return_value=infos):
+            with self.assertRaises(ValueError):
+                read_archive_from_bytes(archive_bytes)
 
     def test_reuse_identical_existing_output(self):
         with tempfile.TemporaryDirectory() as directory:
