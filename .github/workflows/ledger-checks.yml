@@ -49,7 +49,7 @@ jobs:
           python -m py_compile \
             judge.py day3.py day4.py day5.py \
             day6.py day7.py day8.py day9.py day11.py day12.py \
-            day13.py day14.py day15.py day16.py day17.py day18.py day19.py day20.py day21.py
+            day13.py day14.py day15.py day16.py day17.py day18.py day19.py day20.py day21.py day22.py
 
       - name: Test cost attribution
         run: python day5.py test
@@ -95,6 +95,9 @@ jobs:
 
       - name: Test reservation-scoped reconciliation
         run: python day21.py test
+
+      - name: Test portable evidence bundles
+        run: python day22.py test
 
   release-check:
     name: Check saved release evidence
