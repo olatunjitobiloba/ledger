@@ -39,8 +39,13 @@ AUTO_CREATE_SCHEMA = os.getenv(
 DEFAULT_PRICING = {
     "gpt-4o-mini": {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000},
     "gpt-4o": {"input": 2.50 / 1_000_000, "output": 10.00 / 1_000_000},
+    "llama-3.3-70b-versatile": {"input": 0.59 / 1_000_000, "output": 0.79 / 1_000_000},
+    "llama-3.1-8b-instant": {"input": 0.05 / 1_000_000, "output": 0.08 / 1_000_000},
+    "openai/gpt-oss-120b": {"input": 0.15 / 1_000_000, "output": 0.60 / 1_000_000},
+    "openai/gpt-oss-20b": {"input": 0.075 / 1_000_000, "output": 0.30 / 1_000_000},
 }
 try:
-    MODEL_PRICING = json.loads(os.getenv("LEDGER_MODEL_PRICING", "")) or DEFAULT_PRICING
+    _pricing = json.loads(os.getenv("LEDGER_MODEL_PRICING", "")) or DEFAULT_PRICING
 except json.JSONDecodeError:
-    MODEL_PRICING = DEFAULT_PRICING
+    _pricing = DEFAULT_PRICING
+MODEL_PRICING = _pricing

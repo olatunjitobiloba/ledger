@@ -15,6 +15,7 @@ import tempfile
 import unittest
 
 from judge import (
+    TEST_CASES,
     _key_provider_warning,
     _mask,
     _parse_judge_payload,
@@ -22,7 +23,6 @@ from judge import (
     judge_output_mock,
     load_dotenv,
     run_cases,
-    TEST_CASES,
 )
 
 
@@ -122,20 +122,35 @@ class TestKeyDiagnostics(unittest.TestCase):
     def test_openai_style_key_flagged_when_used_as_openrouter(self):
         warning = _key_provider_warning("sk-abc123def456ghi789", "openrouter")
         self.assertIsNotNone(warning)
-        self.assertIn("sk-or-v1-", warning)
+        self.assertIn("sk-or-v1-", warning or "")
 
     def test_openrouter_style_key_flagged_when_used_as_openai(self):
         warning = _key_provider_warning("sk-or-v1-abcdef", "openai")
         self.assertIsNotNone(warning)
-        self.assertIn("OPENROUTER_API_KEY", warning)
+        self.assertIn("OPENROUTER_API_KEY", warning or "")
 
     def test_matching_provider_produces_no_warning(self):
         self.assertIsNone(_key_provider_warning("sk-or-v1-abcdef", "openrouter"))
         self.assertIsNone(_key_provider_warning("sk-abc123def456", "openai"))
+        self.assertIsNone(_key_provider_warning("gsk_abc123def456", "groq"))
+
+    def test_groq_key_flagged_when_used_as_openai(self):
+        warning = _key_provider_warning("gsk_abc123def456ghi789", "openai")
+        self.assertIsNotNone(warning)
+        self.assertIn("GROQ_API_KEY", warning or "")
+
+    def test_openai_key_flagged_when_used_as_groq(self):
+        warning = _key_provider_warning("sk-abc123def456ghi789", "groq")
+        self.assertIsNotNone(warning)
+        self.assertIn("gsk_", warning or "")
 
 
 class TestLoadDotenv(unittest.TestCase):
     """The .env path is how a key avoids ever appearing in chat, so it matters."""
+
+    def __init__(self, methodName: str = "runTest") -> None:
+        super().__init__(methodName)
+        self.saved: dict[str, str] = {}
 
     def setUp(self):
         self.saved = dict(os.environ)
@@ -143,19 +158,20 @@ class TestLoadDotenv(unittest.TestCase):
         # developer key in the host environment must not affect that contract.
         os.environ.pop("OPENAI_API_KEY", None)
         os.environ.pop("OPENROUTER_API_KEY", None)
+        os.environ.pop("GROQ_API_KEY", None)
 
     def tearDown(self):
         os.environ.clear()
         os.environ.update(self.saved)
 
-    def _write(self, body):
-        handle = tempfile.NamedTemporaryFile(
+    def _write(self, body: str) -> str:
+        with tempfile.NamedTemporaryFile(
             "w", suffix=".env", delete=False, encoding="utf-8"
-        )
-        handle.write(body)
-        handle.close()
-        self.addCleanup(os.unlink, handle.name)
-        return handle.name
+        ) as handle:
+            handle.write(body)
+            name = handle.name
+        self.addCleanup(os.unlink, name)
+        return name
 
     def test_reads_pairs_and_skips_comments_and_blanks(self):
         path = self._write(
@@ -195,6 +211,11 @@ class TestLoadDotenv(unittest.TestCase):
             load_dotenv(path)
         self.assertEqual(os.environ["OPENAI_API_KEY"], "sk-abcdef0123456789")
         self.assertIn("no variable name", err.getvalue())
+
+    def test_bare_groq_key_is_inferred(self):
+        path = self._write("gsk_abcdef0123456789\n")
+        load_dotenv(path)
+        self.assertEqual(os.environ["GROQ_API_KEY"], "gsk_abcdef0123456789")
 
     def test_bare_key_does_not_clobber_explicit_variable(self):
         os.environ["OPENROUTER_API_KEY"] = "already-set"
