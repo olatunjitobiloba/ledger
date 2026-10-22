@@ -24,6 +24,7 @@ from typing import Any
 
 from day4 import connect
 from day11 import clean_commit
+from day20 import context_from_environment
 
 
 VERSION = "ledger-container-binding-v1"
@@ -157,6 +158,7 @@ def check_report(stdout: str) -> Path:
 
 
 def generate(args: argparse.Namespace) -> None:
+    execution_context = context_from_environment()
     commit = clean_commit()
     binding = inspect_image(args.image)
     completed = run_container(
@@ -190,6 +192,7 @@ def generate(args: argparse.Namespace) -> None:
         raise ValueError("Generation did not produce expected bound evidence.")
 
     manifest["container_binding"] = binding
+    manifest["execution_context"] = execution_context
     temporary = path.with_suffix(".tmp")
     temporary.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
