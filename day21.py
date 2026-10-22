@@ -248,7 +248,7 @@ def reconcile(args: argparse.Namespace) -> int:
                 "child_report_sha256": sha256(child_raw),
                 "cost_reconciliation": child_report.get(
                     "cost_reconciliation",
-                    child_report.get("application"),
+                    child_report,
                 ),
             }
         )
