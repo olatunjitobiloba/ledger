@@ -318,8 +318,9 @@ class RehearsalTests(unittest.TestCase):
         from unittest.mock import patch
 
         binding = {"image_id": "sha256:" + "a" * 64}
-        with patch(
-            "day14.container_command",
+        with patch.object(
+            sys.modules[__name__],
+            "container_command",
             return_value=[
                 "docker",
                 "run",
