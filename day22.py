@@ -52,7 +52,6 @@ def validate_report_path(path: object, *, must_exist: bool) -> Path:
     if supplied.is_absolute() or "\\" in str(path):
         raise ValueError("Report path must be a safe relative path.")
 
-    root = Path("results/day14").resolve()
     parts = supplied.parts
     if len(parts) != 4 or parts[0] != "results" or parts[1] != "day14":
         raise ValueError("Report path is outside results/day14.")
@@ -65,14 +64,16 @@ def validate_report_path(path: object, *, must_exist: bool) -> Path:
     if supplied.name != "report.json":
         raise ValueError("Report path must end in report.json.")
 
+    lexical = Path()
+    for component in supplied.parts:
+        lexical /= component
+        if lexical.is_symlink():
+            raise ValueError("Report path contains a symlink.")
+
+    root = Path("results/day14").resolve()
     resolved = supplied.resolve()
     if not resolved.is_relative_to(root):
         raise ValueError("Report path escaped results/day14.")
-    current = root
-    for component in supplied.relative_to(Path("results/day14")).parts:
-        current /= component
-        if current.exists() and current.is_symlink():
-            raise ValueError("Report path contains a symlink.")
     if must_exist and (not resolved.is_file() or resolved.is_symlink()):
         raise ValueError("Report path is not a regular file.")
     return resolved
@@ -92,8 +93,12 @@ def canonical_plan_bytes(plan: dict[str, Any]) -> bytes:
 
 
 def manifest_bytes(manifest: dict[str, Any]) -> bytes:
-    if not isinstance(manifest, dict) or manifest.get("signed") is not False:
-        raise ValueError("Evidence manifest must be unsigned.")
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("version") != VERSION
+        or manifest.get("signed") is not False
+    ):
+        raise ValueError("Evidence manifest is invalid.")
     return _canonical_json(manifest)
 
 
@@ -148,7 +153,11 @@ def read_archive_from_bytes(
     except (zipfile.BadZipFile, OSError, RuntimeError) as exc:
         raise ValueError("Evidence archive is invalid.") from exc
     manifest = json.loads(raw_members["manifest.json"])
-    if not isinstance(manifest, dict) or manifest.get("signed") is not False:
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("version") != VERSION
+        or manifest.get("signed") is not False
+    ):
         raise ValueError("Evidence manifest is invalid.")
     plan_bytes = raw_members["plan.json"]
     plan = json.loads(plan_bytes)
@@ -161,12 +170,34 @@ def read_archive_from_bytes(
 
 
 def read_archive(path: Path) -> tuple[dict[str, Any], bytes, bytes]:
-    return read_archive_from_bytes(path.read_bytes())
+    try:
+        path = Path(path)
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("Evidence archive path is not a regular file.")
+        raw = path.read_bytes()
+    except (OSError, ValueError) as exc:
+        if isinstance(exc, ValueError):
+            raise
+        raise ValueError("Evidence archive input is unavailable.") from exc
+    return read_archive_from_bytes(raw)
 
 
 def publish_no_overwrite(path: Path, content: bytes) -> str:
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    parent_parts = path.parent.parts
+    current = Path(path.parent.anchor) if path.parent.anchor else Path()
+    if path.parent.anchor and parent_parts and parent_parts[0] == path.parent.anchor:
+        parent_parts = parent_parts[1:]
+    for component in parent_parts:
+        current /= component
+        if current.is_symlink():
+            raise ValueError("Publication path contains a symlinked parent.")
+        try:
+            current.mkdir(exist_ok=True)
+        except OSError as exc:
+            raise ValueError("Publication parent is unavailable.") from exc
+        if current.is_symlink() or not current.is_dir():
+            raise ValueError("Publication parent is not a regular directory.")
     if path.exists() or path.is_symlink():
         if path.is_file() and not path.is_symlink() and path.read_bytes() == content:
             return "ALREADY_PRESENT"
@@ -247,6 +278,92 @@ class PortableEvidenceBundleTests(unittest.TestCase):
         with zipfile.ZipFile(output, "w") as archive:
             for name in ("manifest.json", "plan.json", "rehearsal.json", "extra"):
                 archive.writestr(name, b"{}")
+        with self.assertRaises(ValueError):
+            read_archive_from_bytes(output.getvalue())
+
+    def test_reject_symlinked_report_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            workspace = Path(directory)
+            try:
+                os.chdir(workspace)
+                target = workspace / "real-results"
+                (target / "day14").mkdir(parents=True)
+                try:
+                    os.symlink(target, workspace / "results", target_is_directory=True)
+                except OSError:
+                    self.skipTest("symlinks are unavailable")
+                with self.assertRaises(ValueError):
+                    validate_report_path(
+                        "results/day14/11111111-1111-4111-8111-111111111111/report.json",
+                        must_exist=False,
+                    )
+            finally:
+                os.chdir(original)
+
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            workspace = Path(directory)
+            try:
+                os.chdir(workspace)
+                (workspace / "results").mkdir()
+                target = workspace / "real-day14"
+                target.mkdir()
+                try:
+                    os.symlink(target, workspace / "results" / "day14", target_is_directory=True)
+                except OSError:
+                    self.skipTest("symlinks are unavailable")
+                with self.assertRaises(ValueError):
+                    validate_report_path(
+                        "results/day14/11111111-1111-4111-8111-111111111111/report.json",
+                        must_exist=False,
+                    )
+            finally:
+                os.chdir(original)
+
+    def test_reject_symlinked_publication_parent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            target = workspace / "target"
+            target.mkdir()
+            try:
+                os.symlink(target, workspace / "published", target_is_directory=True)
+            except OSError:
+                self.skipTest("symlinks are unavailable")
+            with self.assertRaises(ValueError):
+                publish_no_overwrite(workspace / "published" / "bundle.zip", b"data")
+
+    def test_read_archive_rejects_unsafe_input(self):
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            with self.assertRaises(ValueError):
+                read_archive(workspace / "missing.zip")
+            workspace.mkdir(exist_ok=True)
+            with self.assertRaises(ValueError):
+                read_archive(workspace)
+
+    def test_manifest_version_is_required(self):
+        plan, rehearsal = b'{"a":1}', b"report"
+        manifest = self.manifest(plan, rehearsal)
+        manifest["version"] = "wrong"
+        with self.assertRaises(ValueError):
+            build_archive(manifest, plan, rehearsal)
+
+        archive = build_archive(self.manifest(plan, rehearsal), plan, rehearsal)
+        output = __import__("io").BytesIO()
+        with zipfile.ZipFile(output, "w") as rewritten:
+            for name in ("manifest.json", "plan.json", "rehearsal.json"):
+                raw = (
+                    json.dumps(
+                        {"version": "wrong", "signed": False,
+                         "plan_sha256": sha256(plan),
+                         "rehearsal_sha256": sha256(rehearsal)}
+                    ).encode()
+                    if name == "manifest.json"
+                    else {"plan.json": plan, "rehearsal.json": rehearsal}[name]
+                )
+                rewritten.writestr(name, raw)
+        self.assertNotEqual(archive, output.getvalue())
         with self.assertRaises(ValueError):
             read_archive_from_bytes(output.getvalue())
 
