@@ -18,6 +18,7 @@ import uuid
 import zipfile
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, Mock, patch
 
 from day4 import connect
 from day16 import canonical_hash
@@ -424,6 +425,54 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             "rehearsal_sha256": sha256(rehearsal),
         }
 
+    def restore_fixture(self) -> tuple[dict[str, Any], bytes, bytes, uuid.UUID, uuid.UUID]:
+        reservation_id = uuid.UUID("11111111-1111-4111-8111-111111111111")
+        candidate_id = uuid.UUID("22222222-2222-4222-8222-222222222222")
+        plan = canonical_plan_bytes({})
+        rehearsal = _canonical_json({"rehearsal_id": str(candidate_id)})
+        manifest = self.manifest(plan, rehearsal)
+        manifest.update(
+            {
+                "reservation_id": str(reservation_id),
+                "candidate_run_id": str(candidate_id),
+                "rehearsal_report": (
+                    f"results/day14/{candidate_id}/report.json"
+                ),
+            }
+        )
+        return manifest, plan, rehearsal, reservation_id, candidate_id
+
+    def mock_restore_connection(
+        self,
+        reservation_row: tuple[Any, ...],
+        candidate_row: tuple[Any, ...],
+    ) -> MagicMock:
+        connection = MagicMock()
+        connection.__enter__.return_value = connection
+        connection.transaction.return_value.__enter__.return_value = connection
+
+        def execute(query: str, _params: object = None) -> Mock:
+            cursor = Mock()
+            if "ledger_spend_reservations" in query:
+                cursor.fetchone.return_value = reservation_row
+            elif "ledger_eval_runs" in query:
+                cursor.fetchone.return_value = candidate_row
+            return cursor
+
+        connection.execute.side_effect = execute
+        return connection
+
+    def write_restore_archive(
+        self, directory: Path
+    ) -> tuple[Path, dict[str, Any], bytes, bytes, uuid.UUID, uuid.UUID]:
+        manifest, plan, rehearsal, reservation_id, candidate_id = self.restore_fixture()
+        bundle = directory / "bundle.zip"
+        bundle.write_bytes(build_archive(manifest, plan, rehearsal))
+        return bundle, manifest, plan, rehearsal, reservation_id, candidate_id
+
+    def restore_args(self, bundle: Path) -> argparse.Namespace:
+        return argparse.Namespace(bundle=bundle)
+
     def test_accept_canonical_report_path(self):
         path = validate_report_path(
             "results/day14/11111111-1111-4111-8111-111111111111/report.json",
@@ -557,6 +606,115 @@ class PortableEvidenceBundleTests(unittest.TestCase):
         self.assertNotEqual(archive, output.getvalue())
         with self.assertRaises(ValueError):
             read_archive_from_bytes(output.getvalue())
+
+    def test_restore_rejects_malformed_archive_before_connecting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "malformed.zip"
+            bundle.write_bytes(b"not a zip archive")
+            with patch(__name__ + ".connect") as connect_mock:
+                with self.assertRaises(ValueError):
+                    restore_bundle(self.restore_args(bundle))
+            connect_mock.assert_not_called()
+
+    def test_restore_rejects_receiving_candidate_mismatch_without_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            os.chdir(directory)
+            try:
+                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                    self.write_restore_archive(Path(directory))
+                )
+                receiving_row = (
+                    "FINISHED", json.loads(plan), sha256(plan),
+                    uuid.UUID("33333333-3333-4333-8333-333333333333"), 0,
+                    manifest["rehearsal_report"], sha256(rehearsal),
+                )
+                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
+                with patch(__name__ + ".connect", return_value=connection), \
+                     patch(__name__ + ".validate_association"), \
+                     patch(__name__ + ".validate_context"), \
+                     patch(__name__ + ".validate_candidate"):
+                    with self.assertRaises(ValueError):
+                        restore_bundle(self.restore_args(bundle))
+                self.assertFalse(Path(manifest["rehearsal_report"]).exists())
+            finally:
+                os.chdir(original)
+
+    def test_restore_publishes_exact_report_bytes_to_trusted_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            os.chdir(directory)
+            try:
+                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                    self.write_restore_archive(Path(directory))
+                )
+                receiving_row = (
+                    "FINISHED", json.loads(plan), sha256(plan), candidate_id, 0,
+                    manifest["rehearsal_report"], sha256(rehearsal),
+                )
+                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
+                with patch(__name__ + ".connect", return_value=connection), \
+                     patch(__name__ + ".validate_association"), \
+                     patch(__name__ + ".validate_context"), \
+                     patch(__name__ + ".validate_candidate"):
+                    self.assertEqual(restore_bundle(self.restore_args(bundle)), 0)
+                self.assertEqual(
+                    Path(manifest["rehearsal_report"]).read_bytes(), rehearsal
+                )
+            finally:
+                os.chdir(original)
+
+    def test_restore_reports_already_present_for_identical_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            os.chdir(directory)
+            try:
+                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                    self.write_restore_archive(Path(directory))
+                )
+                trusted = Path(manifest["rehearsal_report"])
+                trusted.parent.mkdir(parents=True)
+                trusted.write_bytes(rehearsal)
+                receiving_row = (
+                    "FINISHED", json.loads(plan), sha256(plan), candidate_id, 0,
+                    manifest["rehearsal_report"], sha256(rehearsal),
+                )
+                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
+                with patch(__name__ + ".connect", return_value=connection), \
+                     patch(__name__ + ".validate_association"), \
+                     patch(__name__ + ".validate_context"), \
+                     patch(__name__ + ".validate_candidate"), \
+                     patch("builtins.print") as print_mock:
+                    self.assertEqual(restore_bundle(self.restore_args(bundle)), 0)
+                self.assertIn("ALREADY_PRESENT", print_mock.call_args.args[0])
+            finally:
+                os.chdir(original)
+
+    def test_restore_rejects_conflicting_existing_evidence_without_replacing_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original = Path.cwd()
+            os.chdir(directory)
+            try:
+                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                    self.write_restore_archive(Path(directory))
+                )
+                trusted = Path(manifest["rehearsal_report"])
+                trusted.parent.mkdir(parents=True)
+                trusted.write_bytes(b"existing evidence")
+                receiving_row = (
+                    "FINISHED", json.loads(plan), sha256(plan), candidate_id, 0,
+                    manifest["rehearsal_report"], sha256(rehearsal),
+                )
+                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
+                with patch(__name__ + ".connect", return_value=connection), \
+                     patch(__name__ + ".validate_association"), \
+                     patch(__name__ + ".validate_context"), \
+                     patch(__name__ + ".validate_candidate"):
+                    with self.assertRaises(ValueError):
+                        restore_bundle(self.restore_args(bundle))
+                self.assertEqual(trusted.read_bytes(), b"existing evidence")
+            finally:
+                os.chdir(original)
 
 
 def main() -> int:
