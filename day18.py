@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import unittest
@@ -18,6 +19,7 @@ from psycopg.types.json import Jsonb
 
 from day4 import connect
 from day16 import build_payload, canonical_hash, money, validate_plan
+from day20 import PLAN_ENV, RESERVATION_ENV, require_candidate_context, validate_context
 
 
 SCHEMA = [
@@ -247,6 +249,9 @@ def run(args: argparse.Namespace) -> int:
         raise ValueError("Stored reservation plan and hash disagree.")
 
     checked_plan(plan)
+    child_environment = os.environ.copy()
+    child_environment[RESERVATION_ENV] = str(args.reservation)
+    child_environment[PLAN_ENV] = digest
 
     directory = Path("results/day18") / str(args.reservation)
     directory.mkdir(parents=True, exist_ok=True)
@@ -282,6 +287,7 @@ def run(args: argparse.Namespace) -> int:
                 stdout=stdout,
                 stderr=stderr,
                 text=True,
+                env=child_environment,
             )
 
         code = completed.returncode
@@ -293,7 +299,20 @@ def run(args: argparse.Namespace) -> int:
         path = find_rehearsal_report(output)
         raw = path.read_bytes()
         report = json.loads(raw)
+        validate_context(
+            report.get("execution_context"),
+            args.reservation,
+            digest,
+        )
         candidate = associate(report, plan, code)
+        if candidate is not None:
+            with connect() as connection:
+                require_candidate_context(
+                    connection,
+                    candidate,
+                    args.reservation,
+                    digest,
+                )
         rehearsal_path = str(path)
         rehearsal_hash = hashlib.sha256(raw).hexdigest()
         state = "FINISHED"

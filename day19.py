@@ -16,6 +16,7 @@ from psycopg.types.json import Jsonb
 from day4 import connect
 from day16 import VERSION as PLAN_VERSION, canonical_hash
 from day18 import associate
+from day20 import require_candidate_context, validate_context
 
 
 RECOVERABLE = {"RUNNING", "UNKNOWN"}
@@ -173,6 +174,11 @@ def recover(args: argparse.Namespace) -> int:
             if canonical_hash(plan) != plan_hash:
                 raise ValueError("Stored plan and reservation hash disagree.")
 
+            validate_context(
+                report.get("execution_context"),
+                args.reservation,
+                plan_hash,
+            )
             candidate, code = validate_report(report, plan)
             if candidate is not None:
                 candidate_row = connection.execute(
@@ -187,11 +193,18 @@ def recover(args: argparse.Namespace) -> int:
                         "Candidate run does not exist. Leave the reservation unresolved."
                     )
                 validate_candidate(candidate_row[0], candidate_row[1], plan)
+                require_candidate_context(
+                    connection,
+                    candidate,
+                    args.reservation,
+                    plan_hash,
+                )
 
             evidence = {
                 "rehearsal_id": report["rehearsal_id"],
                 "report_path": report_path,
                 "report_sha256": report_hash,
+                "execution_context": report["execution_context"],
                 "candidate_run_id": str(candidate) if candidate else None,
                 "decision": report["decision"],
                 "exit_code_basis": "inferred from saved report decision",

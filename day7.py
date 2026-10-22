@@ -192,6 +192,7 @@ def evaluate(args: argparse.Namespace) -> None:
             "source_dataset_sha256": manifest["source_dataset_sha256"],
             "runtime_binding": manifest.get("runtime_binding"),
             "container_binding": manifest.get("container_binding"),
+            "execution_context": manifest.get("execution_context"),
             "application_version": manifest["app_version"],
             "application_model": manifest["requested_app_model"],
             "application_reasoning_effort": manifest.get(
