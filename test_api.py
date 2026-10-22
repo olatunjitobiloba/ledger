@@ -47,6 +47,7 @@ class TestApiContracts(unittest.TestCase):
             if stored: break
             time.sleep(0.2)
         self.assertIsNotNone(stored)
+        assert stored is not None
         self.assertGreater(stored["cost_estimated"], 0)
 
     def test_free_tier_rejects_extended_retention(self):
