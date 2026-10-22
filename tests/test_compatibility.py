@@ -4,7 +4,7 @@ import sys
 import unittest
 
 
-LEGACY_MODULES = (
+LEGACY_IMPORT_NAMES = (
     "day3",
     "day4",
     "day5",
@@ -25,11 +25,12 @@ LEGACY_MODULES = (
     "day21",
     "day22",
 )
+LEGACY_MODULES = tuple(f"{name}.py" for name in LEGACY_IMPORT_NAMES)
 
 
 class CompatibilityTests(unittest.TestCase):
     def test_legacy_modules_import(self) -> None:
-        for name in LEGACY_MODULES:
+        for name in LEGACY_IMPORT_NAMES:
             with self.subTest(module=name):
                 self.assertIsNotNone(importlib.import_module(name))
 
@@ -46,13 +47,13 @@ class CompatibilityTests(unittest.TestCase):
         for module in LEGACY_MODULES:
             with self.subTest(module=module):
                 result = subprocess.run(
-                    [sys.executable, f"{module}.py", "--help"],
+                    [sys.executable, module, "--help"],
                     check=False,
                     capture_output=True,
                     text=True,
                 )
                 self.assertEqual(result.returncode, 0)
-                self.assertTrue(result.stdout or result.stderr)
+                self.assertTrue(result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
