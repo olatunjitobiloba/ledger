@@ -131,6 +131,13 @@ def build_archive(
         output.close()
     if len(raw) > MAX_ARCHIVE_BYTES:
         raise ValueError("Evidence archive exceeds size limit.")
+    with zipfile.ZipFile(__import__("io").BytesIO(raw)) as archive:
+        if any(
+            info.file_size > MAX_MEMBER_BYTES
+            or info.compress_size > MAX_MEMBER_BYTES
+            for info in archive.infolist()
+        ):
+            raise ValueError("Evidence member exceeds size limit.")
     return raw
 
 
@@ -524,6 +531,17 @@ class PortableEvidenceBundleTests(unittest.TestCase):
         with patch.object(zipfile.ZipFile, "infolist", return_value=infos):
             with self.assertRaises(ValueError):
                 read_archive_from_bytes(archive_bytes)
+
+    def test_builder_rejects_compressed_member_over_size_limit(self):
+        plan, rehearsal = b'{"a":1}', b"report"
+        manifest = self.manifest(plan, rehearsal)
+        archive_bytes = build_archive(manifest, plan, rehearsal)
+        with zipfile.ZipFile(__import__("io").BytesIO(archive_bytes)) as archive:
+            infos = archive.infolist()
+        infos[1].compress_size = MAX_MEMBER_BYTES + 1
+        with patch.object(zipfile.ZipFile, "infolist", return_value=infos):
+            with self.assertRaises(ValueError):
+                build_archive(manifest, plan, rehearsal)
 
     def test_reuse_identical_existing_output(self):
         with tempfile.TemporaryDirectory() as directory:
