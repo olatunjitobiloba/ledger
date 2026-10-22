@@ -16,6 +16,10 @@ LEDGER_AUTO_CREATE_SCHEMA=false
 LEDGER_ADMIN_TOKEN=long-random-secret
 LEDGER_BLOB_DIR=./data/blobs
 OPENAI_API_KEY=sk-...
+# Or set exactly one of these instead of OpenAI:
+# OPENROUTER_API_KEY=sk-or-v1-...
+# GROQ_API_KEY=gsk_...
+# LEDGER_JUDGE_MODEL=openai/gpt-oss-120b
 ```
 
 If a password contains reserved URL characters such as `@`, `:`, `/`, or `#`,

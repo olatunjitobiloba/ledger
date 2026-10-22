@@ -5,9 +5,13 @@ SDK wrapper, or on any project-specific import. It takes two strings and
 returns a dict. Anything that can call a Python function can call this.
 
 Usage:
-    python judge.py                 # live run, requires OPENAI_API_KEY
+    python judge.py                 # live run, requires one provider key
     python judge.py --mock          # offline dry run, no key, no network
     python judge.py --repeat 2      # consistency check at temperature=0
+
+Providers are detected from the environment in this order: OPENAI_API_KEY,
+OPENROUTER_API_KEY, GROQ_API_KEY. All three speak the same chat.completions
+dialect, so only the base URL and default model change.
 """
 
 from __future__ import annotations
@@ -18,7 +22,29 @@ import os
 import sys
 from typing import Any
 
-JUDGE_MODEL = "gpt-4o-mini"
+# None means "use the active provider's default". Set it explicitly with
+# --model or the LEDGER_JUDGE_MODEL environment variable to override.
+JUDGE_MODEL_ENV = "LEDGER_JUDGE_MODEL"
+_judge_model_override: str | None = None
+
+PROVIDERS: dict[str, dict[str, Any]] = {
+    "openai": {
+        "env": "OPENAI_API_KEY",
+        "base_url": None,
+        "default_model": "gpt-4o-mini",
+    },
+    "openrouter": {
+        "env": "OPENROUTER_API_KEY",
+        "base_url": "https://openrouter.ai/api/v1",
+        "default_model": "openai/gpt-4o-mini",
+    },
+    "groq": {
+        "env": "GROQ_API_KEY",
+        # Groq exposes an OpenAI-compatible endpoint, so the same client works.
+        "base_url": "https://api.groq.com/openai/v1",
+        "default_model": "openai/gpt-oss-120b",
+    },
+}
 
 JUDGE_SYSTEM_PROMPT = """You are an evaluation judge for AI system outputs.
 Score the RESPONSE against the PROMPT on a 0.0-1.0 scale.
@@ -79,6 +105,8 @@ def load_dotenv(path: str = ".env") -> None:
             # prefix rather than failing, since that is the common mistake.
             if line.startswith("sk-or-v1-"):
                 name, value = "OPENROUTER_API_KEY", line
+            elif line.startswith("gsk_"):
+                name, value = "GROQ_API_KEY", line
             elif line.startswith("sk-"):
                 name, value = "OPENAI_API_KEY", line
                 print(
@@ -104,9 +132,9 @@ def _mask(value: str) -> str:
 
 
 def _key_provider_warning(key: str, provider: str) -> str | None:
-    """Catch a key that belongs to the other provider before spending a call.
+    """Catch a key that belongs to another provider before spending a call.
 
-    The two providers reject each other's keys with unhelpful 401s, so a shape
+    The providers reject each other's keys with unhelpful 401s, so a shape
     check is cheaper and clearer than finding out from an auth error.
     """
     if provider == "openrouter" and not key.startswith("sk-or-v1-"):
@@ -115,16 +143,53 @@ def _key_provider_warning(key: str, provider: str) -> str | None:
             "(those start with 'sk-or-v1-'). If it is an OpenAI key, set "
             "OPENAI_API_KEY instead of OPENROUTER_API_KEY."
         )
+    if provider == "groq" and not key.startswith("gsk_"):
+        return (
+            f"Key {_mask(key)} does not look like a Groq key "
+            "(those start with 'gsk_'). Set the matching provider variable."
+        )
     if provider == "openai" and key.startswith("sk-or-v1-"):
         return (
             f"Key {_mask(key)} looks like an OpenRouter key. Set "
             "OPENROUTER_API_KEY instead of OPENAI_API_KEY."
         )
+    if provider == "openai" and key.startswith("gsk_"):
+        return (
+            f"Key {_mask(key)} looks like a Groq key. Set "
+            "GROQ_API_KEY instead of OPENAI_API_KEY."
+        )
     return None
 
 
+def _provider_config() -> tuple[str, str, str | None, str]:
+    """Return (provider, api_key, base_url, default_model) for the active key.
+
+    Precedence is OpenAI, then OpenRouter, then Groq. Explicitly setting one
+    key is enough; the others can stay empty.
+    """
+    for provider, config in PROVIDERS.items():
+        key = os.environ.get(str(config["env"]))
+        if not key:
+            continue
+        base_url = config["base_url"]
+        if provider == "openai":
+            base_url = os.environ.get("OPENAI_BASE_URL")
+        return provider, key, base_url, str(config["default_model"])
+
+    raise RuntimeError(
+        "No API key found. Copy .env.example to .env, put one of "
+        "OPENAI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in it, and run "
+        "again. Never paste a key into chat."
+    )
+
+
+def effective_model() -> str:
+    """Model id to call: explicit override, else the provider's default."""
+    return _judge_model_override or os.environ.get(JUDGE_MODEL_ENV) or _provider_config()[3]
+
+
 def _get_client() -> Any:
-    """Build the OpenAI client lazily.
+    """Build the OpenAI-compatible client lazily.
 
     Lazy so that importing this module never requires the dependency or the
     environment variable to be present. Tests and Postgres wiring can import
@@ -137,24 +202,8 @@ def _get_client() -> Any:
             "The 'openai' package is not installed. Run: pip install -r requirements.txt"
         ) from exc
 
-    api_key = os.environ.get("OPENAI_API_KEY")
-    base_url = os.environ.get("OPENAI_BASE_URL")
+    provider, api_key, base_url, _ = _provider_config()
 
-    if not api_key:
-        router_key = os.environ.get("OPENROUTER_API_KEY")
-        if router_key:
-            # OpenRouter speaks the same chat.completions dialect, so the same
-            # client works with a different base URL and no other changes.
-            api_key = router_key
-            base_url = base_url or "https://openrouter.ai/api/v1"
-
-    if not api_key:
-        raise RuntimeError(
-            "No API key found. Copy .env.example to .env, put your key in it, "
-            "and run again. Never paste a key into chat."
-        )
-
-    provider = "openrouter" if api_key is os.environ.get("OPENROUTER_API_KEY") else "openai"
     warning = _key_provider_warning(api_key, provider)
     if warning:
         print(f"Warning: {warning}", file=sys.stderr)
@@ -241,7 +290,7 @@ def judge_output(prompt: str, response: str) -> dict[str, Any]:
     """
     client = _get_client()
     completion = client.chat.completions.create(
-        model=JUDGE_MODEL,
+        model=effective_model(),
         temperature=0,
         messages=[
             {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
@@ -391,7 +440,7 @@ def check_consistency(judge_fn: Any, cases: list[dict[str, Any]], repeat: int) -
 
 
 def main(argv: list[str] | None = None) -> int:
-    global JUDGE_MODEL
+    global _judge_model_override
     parser = argparse.ArgumentParser(description="Judge a set of prompt/response pairs.")
     parser.add_argument(
         "--mock",
@@ -406,12 +455,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--model",
-        default=JUDGE_MODEL,
-        help=f"Judge model id (default: {JUDGE_MODEL}).",
+        default=None,
+        help=(
+            "Judge model id. Defaults to the active provider: gpt-4o-mini "
+            "(OpenAI/OpenRouter) or openai/gpt-oss-120b (Groq)."
+        ),
     )
     args = parser.parse_args(argv)
 
-    JUDGE_MODEL = args.model
+    _judge_model_override = args.model
 
     load_dotenv()
 
@@ -419,7 +471,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.mock:
         print("MOCK MODE: wiring and parsing only. Scores below are not real evals.\n")
     else:
-        print(f"Live mode: model={JUDGE_MODEL}, temperature=0\n")
+        try:
+            model = effective_model()
+        except RuntimeError as exc:
+            print(f"\nSetup problem: {exc}", file=sys.stderr)
+            return 2
+        print(f"Live mode: model={model}, temperature=0\n")
 
     try:
         results = run_cases(judge_fn, TEST_CASES)
