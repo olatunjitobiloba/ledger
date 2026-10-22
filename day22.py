@@ -224,6 +224,89 @@ def publish_no_overwrite(path: Path, content: bytes) -> str:
                 pass
 
 
+def export_reservation(args: argparse.Namespace) -> int:
+    with connect() as connection:
+        with connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+            )
+            row = connection.execute(
+                """
+                SELECT state, plan, plan_sha256, candidate_run_id, exit_code,
+                       rehearsal_report, rehearsal_report_sha256
+                FROM ledger_spend_reservations
+                WHERE reservation_id = %s
+                """,
+                (args.reservation,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Reservation does not exist.")
+            (
+                state,
+                plan,
+                plan_hash,
+                candidate,
+                exit_code,
+                rehearsal_path,
+                rehearsal_hash,
+            ) = row
+            candidate_id = require_finished_candidate(state, candidate)
+            if canonical_hash(plan) != plan_hash:
+                raise ValueError("Stored plan and reservation hash disagree.")
+
+            report_manifest_path = str(rehearsal_path)
+            report_path = validate_report_path(rehearsal_path, must_exist=True)
+            report_bytes = report_path.read_bytes()
+            if sha256(report_bytes) != rehearsal_hash:
+                raise ValueError("Saved rehearsal report hash differs from the ledger.")
+            report = json.loads(report_bytes)
+            if not isinstance(report, dict):
+                raise ValueError("Saved rehearsal report is not an object.")
+            validate_association(
+                args.reservation,
+                plan,
+                plan_hash,
+                candidate_id,
+                exit_code,
+                report,
+            )
+
+            candidate_row = connection.execute(
+                """
+                SELECT config, reviewed_by
+                FROM ledger_eval_runs
+                WHERE run_id = %s
+                """,
+                (candidate_id,),
+            ).fetchone()
+            if candidate_row is None:
+                raise ValueError("Candidate run does not exist.")
+            config, reviewed_by = candidate_row
+            validate_context(
+                config.get("execution_context")
+                if isinstance(config, dict)
+                else None,
+                args.reservation,
+                plan_hash,
+            )
+            validate_candidate(config, reviewed_by, plan)
+
+    plan_bytes = canonical_plan_bytes(plan)
+    manifest = {
+        "version": VERSION,
+        "signed": False,
+        "reservation_id": str(args.reservation),
+        "candidate_run_id": str(candidate_id),
+        "plan_sha256": plan_hash,
+        "rehearsal_report": report_manifest_path,
+        "rehearsal_sha256": sha256(report_bytes),
+    }
+    archive_bytes = build_archive(manifest, plan_bytes, report_bytes)
+    status = publish_no_overwrite(args.output, archive_bytes)
+    print(f"Exported {args.output} ({status}).")
+    return 0
+
+
 class PortableEvidenceBundleTests(unittest.TestCase):
     def manifest(self, plan: bytes, rehearsal: bytes) -> dict[str, Any]:
         return {
@@ -373,15 +456,17 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("test")
     export = subparsers.add_parser("export")
-    export.add_argument("--reservation", required=True)
-    export.add_argument("--output", required=True)
+    export.add_argument("--reservation", required=True, type=uuid.UUID)
+    export.add_argument("--output", required=True, type=Path)
     restore = subparsers.add_parser("restore")
     restore.add_argument("--bundle", required=True)
     args = parser.parse_args()
     if args.command == "test":
         result = unittest.main(argv=[sys.argv[0], "PortableEvidenceBundleTests"], exit=False)
         return 0 if result.result.wasSuccessful() else 1
-    raise SystemExit("Export and restore are reserved for a later task.")
+    if args.command == "export":
+        return export_reservation(args)
+    raise SystemExit("Restore is reserved for a later task.")
 
 
 if __name__ == "__main__":
