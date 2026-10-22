@@ -307,6 +307,114 @@ def export_reservation(args: argparse.Namespace) -> int:
     return 0
 
 
+def _canonical_uuid(value: object, label: str) -> uuid.UUID:
+    if not isinstance(value, str):
+        raise ValueError(f"{label} is invalid.")
+    try:
+        parsed = uuid.UUID(value)
+    except (ValueError, AttributeError, TypeError):
+        raise ValueError(f"{label} is invalid.") from None
+    if str(parsed) != value:
+        raise ValueError(f"{label} is not canonical.")
+    return parsed
+
+
+def restore_bundle(args: argparse.Namespace) -> int:
+    manifest, plan_bytes, rehearsal_bytes = read_archive(args.bundle)
+    reservation_id = _canonical_uuid(
+        manifest.get("reservation_id"), "Manifest reservation ID"
+    )
+    bundled_candidate = _canonical_uuid(
+        manifest.get("candidate_run_id"), "Manifest candidate ID"
+    )
+    plan = json.loads(plan_bytes)
+    report = json.loads(rehearsal_bytes)
+    if not isinstance(plan, dict):
+        raise ValueError("Bundled plan is not an object.")
+    if not isinstance(report, dict):
+        raise ValueError("Bundled rehearsal report is not an object.")
+    if canonical_plan_bytes(plan) != plan_bytes:
+        raise ValueError("Plan is not canonical JSON.")
+    plan_hash = verify_member_hash(plan_bytes, manifest.get("plan_sha256"))
+    rehearsal_hash = verify_member_hash(
+        rehearsal_bytes, manifest.get("rehearsal_sha256")
+    )
+    manifest_report = manifest.get("rehearsal_report")
+    validate_report_path(manifest_report, must_exist=False)
+    report_path = Path(manifest_report)
+    parent_id = _canonical_uuid(report_path.parts[2], "Report parent ID")
+    if report.get("rehearsal_id") != str(parent_id):
+        raise ValueError("Rehearsal report ID differs from manifest path.")
+
+    with connect() as connection:
+        with connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+            )
+            row = connection.execute(
+                """
+                SELECT state, plan, plan_sha256, candidate_run_id, exit_code,
+                       rehearsal_report, rehearsal_report_sha256
+                FROM ledger_spend_reservations
+                WHERE reservation_id = %s
+                """,
+                (reservation_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Reservation does not exist.")
+            (
+                state,
+                receiving_plan,
+                receiving_plan_hash,
+                receiving_candidate,
+                exit_code,
+                receiving_report_path,
+                receiving_report_hash,
+            ) = row
+            finished_candidate = require_finished_candidate(
+                state, receiving_candidate
+            )
+            if finished_candidate != bundled_candidate:
+                raise ValueError("Receiving candidate differs from bundle.")
+            if receiving_plan_hash != plan_hash or receiving_plan != plan:
+                raise ValueError("Receiving plan differs from bundle.")
+            if receiving_report_path != manifest_report:
+                raise ValueError("Receiving report path differs from bundle.")
+            if receiving_report_hash != rehearsal_hash:
+                raise ValueError("Receiving report hash differs from bundle.")
+            validate_association(
+                reservation_id,
+                plan,
+                plan_hash,
+                finished_candidate,
+                exit_code,
+                report,
+            )
+
+            candidate_row = connection.execute(
+                """
+                SELECT config, reviewed_by
+                FROM ledger_eval_runs
+                WHERE run_id = %s
+                """,
+                (finished_candidate,),
+            ).fetchone()
+            if candidate_row is None:
+                raise ValueError("Candidate run does not exist.")
+            config, reviewed_by = candidate_row
+            if not isinstance(config, dict):
+                raise ValueError("Candidate configuration is invalid.")
+            validate_context(
+                config.get("execution_context"), reservation_id, plan_hash
+            )
+            validate_candidate(config, reviewed_by, plan)
+
+    trusted_path = validate_report_path(receiving_report_path, must_exist=False)
+    status = publish_no_overwrite(trusted_path, rehearsal_bytes)
+    print(f"Restored {trusted_path} ({status}).")
+    return 0
+
+
 class PortableEvidenceBundleTests(unittest.TestCase):
     def manifest(self, plan: bytes, rehearsal: bytes) -> dict[str, Any]:
         return {
@@ -459,14 +567,16 @@ def main() -> int:
     export.add_argument("--reservation", required=True, type=uuid.UUID)
     export.add_argument("--output", required=True, type=Path)
     restore = subparsers.add_parser("restore")
-    restore.add_argument("--bundle", required=True)
+    restore.add_argument("--bundle", required=True, type=Path)
     args = parser.parse_args()
     if args.command == "test":
         result = unittest.main(argv=[sys.argv[0], "PortableEvidenceBundleTests"], exit=False)
         return 0 if result.result.wasSuccessful() else 1
     if args.command == "export":
         return export_reservation(args)
-    raise SystemExit("Restore is reserved for a later task.")
+    if args.command == "restore":
+        return restore_bundle(args)
+    raise SystemExit("Unknown command.")
 
 
 if __name__ == "__main__":
