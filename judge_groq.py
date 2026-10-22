@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -131,7 +131,7 @@ def evaluate(client: Any, case: dict[str, Any]) -> dict[str, Any]:
         "dataset_version": DATASET_VERSION,
         "rubric_version": RUBRIC_VERSION,
         "requested_model": MODEL,
-        "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "evaluated_at": datetime.now(UTC).isoformat(),
         "expected_pass": case["expected_pass"],
     }
 
@@ -225,7 +225,7 @@ def main() -> None:
 
     output = Path("results")
     output.mkdir(exist_ok=True)
-    filename = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ.json")
+    filename = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ.json")
     report_path = output / filename
     report_path.write_text(
         json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
