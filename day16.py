@@ -171,6 +171,7 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
         "image_reference": args.image,
         "baseline_run_id": str(args.baseline),
         "source_dataset_sha256": source_hash,
+        "spend_policy_sha256": hash_bytes(policy_bytes),
         "runtime_config_sha256": hash_bytes(
             Path("runtime-config.json").read_bytes()
         ),
