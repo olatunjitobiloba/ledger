@@ -24,6 +24,7 @@ from typing import Any
 
 from day11 import clean_commit
 from day13 import container_command, generation_artifact, inspect_image, validate_binding
+from day20 import context_from_environment
 
 
 VERSION = "ledger-rehearsal-v1"
@@ -159,6 +160,7 @@ def rehearsal(args: argparse.Namespace) -> int:
     }
 
     try:
+        report["execution_context"] = context_from_environment()
         for name in ("GROQ_API_KEY", "DATABASE_URL"):
             if not os.getenv(name):
                 raise ValueError(f"Set {name} before starting.")
