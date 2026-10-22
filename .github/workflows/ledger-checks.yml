@@ -1,0 +1,129 @@
+name: Ledger checks
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      baseline_run_id:
+        description: "Completed baseline application run UUID"
+        required: true
+        type: string
+      candidate_run_id:
+        description: "Completed candidate application run UUID"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Offline tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile \
+            judge.py day3.py day4.py day5.py \
+            day6.py day7.py day8.py day9.py
+
+      - name: Test cost attribution
+        run: python day5.py test
+
+      - name: Test regression gate
+        run: python day6.py test
+
+      - name: Test injection monitoring
+        run: python day8.py test
+
+      - name: Test release policy
+        run: python day9.py test
+
+  release-check:
+    name: Check saved release evidence
+    if: github.event_name == 'workflow_dispatch'
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: ledger-evaluation
+
+    env:
+      DATABASE_URL: ${{ secrets.LEDGER_DATABASE_URL }}
+      BASELINE_RUN_ID: ${{ inputs.baseline_run_id }}
+      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip check
+
+      - name: Validate configuration
+        run: |
+          python - <<'PY'
+          import os
+          import uuid
+
+          if not os.getenv("DATABASE_URL"):
+              raise SystemExit("LEDGER_DATABASE_URL is not configured.")
+
+          baseline = uuid.UUID(os.environ["BASELINE_RUN_ID"])
+          candidate = uuid.UUID(os.environ["CANDIDATE_RUN_ID"])
+
+          if baseline == candidate:
+              raise SystemExit("Choose two different application runs.")
+
+          print("Database secret is present and run IDs are valid.")
+          PY
+
+      - name: Run release-readiness policy
+        run: |
+          python day9.py check \
+            --baseline "$BASELINE_RUN_ID" \
+            --candidate "$CANDIDATE_RUN_ID" \
+            --allowed-drop 0.05 \
+            --quality-floor 0.75
+
+      - name: Upload release decision report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-release-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: results/day9/*.json
+          if-no-files-found: warn
+          retention-days: 7
