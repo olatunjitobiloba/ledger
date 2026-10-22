@@ -138,13 +138,14 @@ def process_eval(db: Session, payload: dict[str, Any]) -> None:
         run.status = "failed"
         run.completed_at = utcnow()
         return
-    run.result_score = round(sum(item["score"] for item in results) / len(results) * 100, 2)
-    run.passed = run.result_score >= run.baseline_score - run.variance
+    score = round(sum(item["score"] for item in results) / len(results) * 100, 2)
+    run.result_score = score
+    run.passed = score >= run.baseline_score - run.variance
     run.worst_cases = sorted(results, key=lambda item: item["score"])[:3]
     run.status, run.completed_at = "completed", utcnow()
     if not run.passed:
         db.add(Alert(project_id=run.project_id, eval_run_id=run.id,
-               message=f"Config {run.config_id} scored {run.result_score}, below gate {run.baseline_score - run.variance:.2f}."))
+               message=f"Config {run.config_id} scored {score}, below gate {run.baseline_score - run.variance:.2f}."))
 
 
 def process_one_job(db: Session) -> bool:
