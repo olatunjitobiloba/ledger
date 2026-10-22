@@ -1,0 +1,22 @@
+{
+  "version": "ledger-spend-policy-v1",
+  "pricing_source": "Groq public pricing references verified 2026-10-22",
+  "currency": "USD",
+  "budget_usd": "1.00",
+  "application": {
+    "model": "openai/gpt-oss-20b",
+    "input_usd_per_million": "0.075",
+    "output_usd_per_million": "0.30",
+    "planned_input_tokens_per_call": 2000,
+    "planned_output_tokens_per_call": 2048,
+    "planned_attempts_per_call": 1
+  },
+  "judge": {
+    "model": "openai/gpt-oss-120b",
+    "input_usd_per_million": "0.15",
+    "output_usd_per_million": "0.60",
+    "planned_input_tokens_per_call": 6000,
+    "planned_output_tokens_per_call": 2048,
+    "planned_attempts_per_call": 3
+  }
+}
