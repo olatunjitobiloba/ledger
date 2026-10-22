@@ -188,6 +188,7 @@ def evaluate(args: argparse.Namespace) -> None:
     config = build_config(dataset, dataset_hash, args.repeats)
     config.update(
         {
+            "application_provenance": manifest.get("application_provenance"),
             "application_version": manifest["app_version"],
             "application_model": manifest["requested_app_model"],
             "application_reasoning_effort": manifest.get(
