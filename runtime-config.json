@@ -1,0 +1,7 @@
+{
+  "version": "ledger-runtime-v1",
+  "app_model": "openai/gpt-oss-20b",
+  "prompt_file": "prompts/candidate.txt",
+  "temperature": 0,
+  "max_completion_tokens": 2048
+}
