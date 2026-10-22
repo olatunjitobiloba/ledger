@@ -48,7 +48,8 @@ jobs:
         run: |
           python -m py_compile \
             judge.py day3.py day4.py day5.py \
-            day6.py day7.py day8.py day9.py day11.py day12.py day13.py
+            day6.py day7.py day8.py day9.py day11.py day12.py \
+            day13.py day14.py
 
       - name: Test cost attribution
         run: python day5.py test
@@ -70,6 +71,9 @@ jobs:
 
       - name: Test container binding
         run: python day13.py test
+
+      - name: Test evaluation orchestration
+        run: python day14.py test
 
   release-check:
     name: Check saved release evidence
