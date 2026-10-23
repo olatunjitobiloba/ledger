@@ -3,18 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib
+import io
 import os
 import sys
 import uuid
 from pathlib import Path
 from typing import Callable
-
-import uvicorn
-
-from ledger.evaluation.evidence import export_reservation, restore_bundle
-from ledger.observability.worker import main as worker_main
-
 
 REQUIRED_FILES = (
     Path("runtime-config.json"),
@@ -70,17 +66,71 @@ def _report_check(passed: bool, label: str) -> bool:
     return passed
 
 
-def _load_local_environment() -> None:
-    """Load the existing local .env convention without displaying its values."""
-    from judge import load_dotenv
+def _local_secret_names(path: Path = Path(".env")) -> set[str]:
+    """Return configured secret variable names without loading or displaying values."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return set()
 
-    load_dotenv()
+    present: set[str] = set()
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            name, _, value = line.partition("=")
+            if name.strip() in SECRET_VARIABLES and value.strip().strip("'\""):
+                present.add(name.strip())
+        elif line.startswith("sk-or-v1-"):
+            present.add("OPENROUTER_API_KEY")
+        elif line.startswith("gsk_"):
+            present.add("GROQ_API_KEY")
+        elif line.startswith("sk-"):
+            present.add("OPENAI_API_KEY")
+    return present
+
+
+def _database_connect():
+    """Import Day 4 only for an explicit database check without leaking loader output."""
+    with contextlib.redirect_stderr(io.StringIO()):
+        from day4 import connect
+
+    return connect()
+
+
+def _serve() -> int | None:
+    """Start Uvicorn only after the user explicitly selects the serve command."""
+    import uvicorn
+
+    return uvicorn.run("ledger_api.main:app")
+
+
+def worker_main() -> int | None:
+    """Load and run the existing worker only after explicit dispatch."""
+    from ledger.observability.worker import main as delegate
+
+    return delegate()
+
+
+def export_reservation(args: argparse.Namespace) -> int:
+    """Load the Day 22 export facade only when the command is executed."""
+    from ledger.evaluation.evidence import export_reservation as delegate
+
+    return delegate(args)
+
+
+def restore_bundle(args: argparse.Namespace) -> int:
+    """Load the Day 22 restore facade only when the command is executed."""
+    from ledger.evaluation.evidence import restore_bundle as delegate
+
+    return delegate(args)
 
 
 def run_doctor(*, check_database: bool) -> int:
     """Run diagnostic checks without changing application data or schema."""
-    _load_local_environment()
     successful = True
+    locally_configured_secrets = _local_secret_names()
 
     successful &= _report_check(
         sys.version_info >= (3, 11),
@@ -99,14 +149,12 @@ def run_doctor(*, check_database: bool) -> int:
             _report_check(True, f"required module: {module_name}")
 
     for variable in SECRET_VARIABLES:
-        status = "present" if os.getenv(variable) else "missing"
+        status = "present" if os.getenv(variable) or variable in locally_configured_secrets else "missing"
         print(f"[INFO] secret {variable}: {status}")
 
     if check_database:
         try:
-            from day4 import connect
-
-            with connect():
+            with _database_connect():
                 pass
         except (Exception, SystemExit) as exc:
             successful &= _report_check(
@@ -133,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "doctor":
         return run_doctor(check_database=args.check_database)
     if args.command == "serve":
-        result = uvicorn.run("ledger_api.main:app")
+        result = _serve()
         return 0 if result is None else result
     if args.command == "worker":
         result = worker_main()
