@@ -47,10 +47,13 @@ jobs:
       - name: Check Python syntax
         run: |
           python -m py_compile \
-            judge.py day3.py day4.py day5.py \
+            judge.py judge_groq.py day3.py day4.py day5.py \
             day6.py day7.py day8.py day9.py day11.py day12.py \
             day13.py day14.py day15.py day16.py day17.py day18.py day19.py day20.py day21.py day22.py \
             ledger/__main__.py ledger/cli.py
+
+      - name: Test product API and judge
+        run: python -m unittest test_judge test_judge_groq test_api -v
 
       - name: Test compatibility and stable CLI
         run: python -m unittest tests.test_compatibility tests.test_cli -v
