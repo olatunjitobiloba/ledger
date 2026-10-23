@@ -10,7 +10,7 @@ import json
 import unittest
 from types import SimpleNamespace
 
-from judge_groq import CASES, JudgeAssessment, evaluate
+from ledger.judges import CASES, JudgeAssessment, evaluate
 
 
 def _content(correctness: int, relevance: int, completeness: int) -> str:

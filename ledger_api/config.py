@@ -7,7 +7,7 @@ from pathlib import Path
 # The API and worker run independently from judge.py's CLI, so they must load
 # local development configuration themselves. Existing environment variables
 # still win, which is what Rumpty's production environment uses.
-from judge import load_dotenv
+from ledger.judges import load_dotenv
 
 load_dotenv()
 

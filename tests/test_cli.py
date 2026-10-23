@@ -59,7 +59,7 @@ class LedgerCliTests(unittest.TestCase):
             workspace = Path(temporary_directory)
             shutil.copytree(REPOSITORY_ROOT / "ledger", workspace / "ledger")
             for filename in ("judge.py", "judge_groq.py"):
-                shutil.copy2(REPOSITORY_ROOT / filename, workspace / filename)
+                shutil.copy2(REPOSITORY_ROOT / "ledger" / "judges" / filename, workspace / filename)
             (workspace / ".env").write_text(
                 "sk-SECRET-DO-NOT-PRINT\n", encoding="utf-8"
             )

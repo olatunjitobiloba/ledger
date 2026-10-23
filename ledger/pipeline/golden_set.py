@@ -20,7 +20,7 @@ from typing import Any
 
 from groq import Groq
 
-import judge_groq as judge
+from ledger.judges import judge_groq as judge
 
 DATASET_PATH = Path("datasets/golden-v1.json")
 DATASET_VERSION = "ledger-golden-v1"

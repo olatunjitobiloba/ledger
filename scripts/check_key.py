@@ -17,7 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from judge import _key_provider_warning, _mask, load_dotenv
+from ledger.judges import _key_provider_warning, _mask, load_dotenv
 
 BASE_URLS = {
     "openrouter": "https://openrouter.ai/api/v1",

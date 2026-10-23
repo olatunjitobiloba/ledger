@@ -24,7 +24,7 @@ from typing import Any
 from groq import Groq
 from psycopg.types.json import Jsonb
 
-import judge_groq as judge
+from ledger.judges import judge_groq as judge
 from ledger.pipeline.evaluation_runs import SCHEMA, build_config, connect, print_summary
 from ledger.pipeline.golden_set import load_dataset
 
