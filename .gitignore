@@ -31,11 +31,16 @@ htmlcov/
 .tox/
 
 # Eval output. Results belong in Postgres (Day 4), not in git.
+# Use `python day22.py export` or `python -m ledger evidence export` to
+# produce a portable evidence bundle instead of committing raw results.
 results/
 *.jsonl
 eval_results/
 
-# Local databases
+# Local blob storage for captured payloads. Never commit user data.
+data/blobs/
+
+# Local databases (development only; production uses Rumpty managed Postgres).
 *.db
 *.sqlite
 *.sqlite3
