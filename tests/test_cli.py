@@ -58,7 +58,7 @@ class LedgerCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             workspace = Path(temporary_directory)
             shutil.copytree(REPOSITORY_ROOT / "ledger", workspace / "ledger")
-            for filename in ("day4.py", "day22.py", "judge.py", "judge_groq.py"):
+            for filename in ("judge.py", "judge_groq.py"):
                 shutil.copy2(REPOSITORY_ROOT / filename, workspace / filename)
             (workspace / ".env").write_text(
                 "sk-SECRET-DO-NOT-PRINT\n", encoding="utf-8"
@@ -110,7 +110,7 @@ class LedgerCliTests(unittest.TestCase):
         connection = unittest.mock.MagicMock()
         connection.__enter__.return_value = connection
 
-        with patch("day4.connect", return_value=connection) as connect:
+        with patch("ledger.pipeline.evaluation_runs.connect", return_value=connection) as connect:
             result = cli.run_doctor(check_database=True)
 
         self.assertIn(result, (0, 1))

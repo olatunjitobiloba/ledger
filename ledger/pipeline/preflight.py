@@ -1,8 +1,8 @@
-"""Day 15: check evaluation readiness before spending model calls.
+"""Check evaluation readiness before spending model calls.
 
-    python day15.py test
-    python day15.py check --image registry/image@sha256:<digest> ...
-    python day15.py run --image registry/image@sha256:<digest> ...
+    python -m ledger.pipeline.preflight test
+    python -m ledger.pipeline.preflight check --image registry/image@sha256:<digest> ...
+    python -m ledger.pipeline.preflight run --image registry/image@sha256:<digest> ...
 
 The preflight runs inside the pinned evaluation image and writes only local
 logs and a summary report.
@@ -23,8 +23,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day11 import clean_commit
-from day13 import container_command, inspect_image
+from ledger.pipeline.provenance import clean_commit
+from ledger.pipeline.container_binding import container_command, inspect_image
 
 
 VERSION = "ledger-preflight-v1"
@@ -103,9 +103,9 @@ def validate_baseline(
 
 
 def inside_preflight(args: argparse.Namespace) -> None:
-    from day3 import load_dataset
-    from day4 import connect
-    from day12 import build_binding
+    from ledger.pipeline.golden_set import load_dataset
+    from ledger.pipeline.evaluation_runs import connect
+    from ledger.pipeline.runtime_binding import build_binding
 
     runtime = build_binding()
     source, _ = load_dataset()
@@ -205,7 +205,7 @@ def execute(args: argparse.Namespace) -> int:
         completed = subprocess.run(
             container_command(
                 binding,
-                ["day15.py", "inside", "--baseline", str(args.baseline),
+                ["-m", "ledger.pipeline.preflight", "inside", "--baseline", str(args.baseline),
                  "--repeats", str(args.repeats)],
             ),
             text=True,
@@ -236,7 +236,8 @@ def execute(args: argparse.Namespace) -> int:
             completed = subprocess.run(
                 [
                     sys.executable,
-                    "day14.py",
+                    "-m",
+                    "ledger.pipeline.orchestration",
                     "run",
                     "--image",
                     args.image,

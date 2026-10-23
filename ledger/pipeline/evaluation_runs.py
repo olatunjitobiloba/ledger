@@ -1,8 +1,8 @@
-"""Day 4: persist golden-set evaluations in PostgreSQL.
+"""Persist golden-set evaluations in PostgreSQL.
 
-    python day4.py init-db
-    python day4.py run --reviewed-by "Tobi" --repeats 1
-    python day4.py run --reviewed-by "Tobi" --repeats 1 --run-id <UUID>
+    python -m ledger.pipeline.evaluation_runs init-db
+    python -m ledger.pipeline.evaluation_runs run --reviewed-by "Tobi" --repeats 1
+    python -m ledger.pipeline.evaluation_runs run --reviewed-by "Tobi" --repeats 1 --run-id <UUID>
 
 Results are written one row at a time. Reusing a run id skips rows that are
 already saved and refuses to continue if the dataset, evaluator, or config
@@ -26,7 +26,7 @@ from groq import Groq
 from psycopg.types.json import Jsonb
 
 import judge_groq as judge
-from day3 import load_dataset
+from ledger.pipeline.golden_set import load_dataset
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ledger_eval_runs (

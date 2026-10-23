@@ -1,4 +1,4 @@
-"""Day 16: require an explicit estimated-spend approval before rehearsal."""
+"""Require an explicit estimated-spend approval before rehearsal."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from day3 import load_dataset
-from day11 import clean_commit, require_tracked
-from day13 import validate_reference
+from ledger.pipeline.golden_set import load_dataset
+from ledger.pipeline.provenance import clean_commit, require_tracked
+from ledger.pipeline.container_binding import validate_reference
 
 
 VERSION = "ledger-spend-plan-v1"
@@ -140,7 +140,7 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
     commit = clean_commit()
     require_tracked(POLICY_FILE)
     require_tracked("runtime-config.json")
-    require_tracked("day16.py")
+    require_tracked("ledger/pipeline/spend_plan.py")
     validate_reference(args.image)
 
     policy_bytes = POLICY_FILE.read_bytes()
@@ -257,11 +257,12 @@ def execute_plan(args: argparse.Namespace) -> int:
     current = build_payload(reconstructed)
     validate_plan(plan, current, datetime.now(timezone.utc))
 
-    print("Spend plan accepted. Starting Day 15 preflight.", flush=True)
+    print("Spend plan accepted. Starting preflight.", flush=True)
     completed = subprocess.run(
         [
             sys.executable,
-            "day15.py",
+            "-m",
+            "ledger.pipeline.preflight",
             "run",
             "--image",
             reconstructed.image,

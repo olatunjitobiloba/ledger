@@ -16,33 +16,33 @@ verification command that runs offline.
 
 | Claim | Source | Verification |
 | --- | --- | --- |
-| Versioned golden-set evaluation | [day3.py](../../../day3.py) | Offline init: `python day3.py init` (creates dataset) |
-| Cost attribution from provider tokens | [day5.py](../../../day5.py) | `python day5.py test` |
-| Regression gate blocks below threshold | [day6.py](../../../day6.py) | `python day6.py test` |
-| Injection monitoring flags suspicious text | [day8.py](../../../day8.py) | `python day8.py test` |
-| Release-readiness policy check | [day9.py](../../../day9.py) | `python day9.py test` |
+| Versioned golden-set evaluation | [ledger/pipeline/golden_set.py](../../ledger/pipeline/golden_set.py) | Offline init: `python -m ledger.pipeline.golden_set init` (creates dataset) |
+| Cost attribution from provider tokens | [ledger/pipeline/costs.py](../../ledger/pipeline/costs.py) | `python -m ledger.pipeline.costs test` |
+| Regression gate blocks below threshold | [ledger/pipeline/regression.py](../../ledger/pipeline/regression.py) | `python -m ledger.pipeline.regression test` |
+| Injection monitoring flags suspicious text | [ledger/pipeline/injection_scan.py](../../ledger/pipeline/injection_scan.py) | `python -m ledger.pipeline.injection_scan test` |
+| Release-readiness policy check | [ledger/pipeline/release_policy.py](../../ledger/pipeline/release_policy.py) | `python -m ledger.pipeline.release_policy test` |
 
 ## Evidence chain
 
 | Claim | Source | Verification |
 | --- | --- | --- |
-| Commit provenance binds evidence to Git | [day11.py](../../../day11.py) | `python day11.py test` |
-| Runtime fingerprint prevents config drift | [day12.py](../../../day12.py) | `python day12.py test` |
-| Container binding pins evaluation runtime | [day13.py](../../../day13.py) | `python day13.py test` |
-| Evaluation orchestration runs end-to-end | [day14.py](../../../day14.py) | `python day14.py test` |
-| Preflight catches issues before spend | [day15.py](../../../day15.py) | `python day15.py test` |
+| Commit provenance binds evidence to Git | [ledger/pipeline/provenance.py](../../ledger/pipeline/provenance.py) | `python -m ledger.pipeline.provenance test` |
+| Runtime fingerprint prevents config drift | [ledger/pipeline/runtime_binding.py](../../ledger/pipeline/runtime_binding.py) | `python -m ledger.pipeline.runtime_binding test` |
+| Container binding pins evaluation runtime | [ledger/pipeline/container_binding.py](../../ledger/pipeline/container_binding.py) | `python -m ledger.pipeline.container_binding test` |
+| Evaluation orchestration runs end-to-end | [ledger/pipeline/orchestration.py](../../ledger/pipeline/orchestration.py) | `python -m ledger.pipeline.orchestration test` |
+| Preflight catches issues before spend | [ledger/pipeline/preflight.py](../../ledger/pipeline/preflight.py) | `python -m ledger.pipeline.preflight test` |
 
 ## Spend control
 
 | Claim | Source | Verification |
 | --- | --- | --- |
-| Spend plans require explicit approval | [day16.py](../../../day16.py) | `python day16.py test` |
-| Cost reconciliation matches plan to usage | [day17.py](../../../day17.py) | `python day17.py test` |
-| Reservations enforce single-use execution | [day18.py](../../../day18.py) | `python day18.py test` |
-| Interrupted reservations are recoverable | [day19.py](../../../day19.py) | `python day19.py test` |
-| Execution context is validated | [day20.py](../../../day20.py) | `python day20.py test` |
-| Reservation-scoped reconciliation works | [day21.py](../../../day21.py) | `python day21.py test` |
-| Portable evidence bundles export/restore | [day22.py](../../../day22.py) | `python day22.py test` |
+| Spend plans require explicit approval | [ledger/pipeline/spend_plan.py](../../ledger/pipeline/spend_plan.py) | `python -m ledger.pipeline.spend_plan test` |
+| Cost reconciliation matches plan to usage | [ledger/pipeline/cost_reconciliation.py](../../ledger/pipeline/cost_reconciliation.py) | `python -m ledger.pipeline.cost_reconciliation test` |
+| Reservations enforce single-use execution | [ledger/pipeline/spend_reservations.py](../../ledger/pipeline/spend_reservations.py) | `python -m ledger.pipeline.spend_reservations test` |
+| Interrupted reservations are recoverable | [ledger/pipeline/reservation_recovery.py](../../ledger/pipeline/reservation_recovery.py) | `python -m ledger.pipeline.reservation_recovery test` |
+| Execution context is validated | [ledger/pipeline/execution_context.py](../../ledger/pipeline/execution_context.py) | `python -m ledger.pipeline.execution_context test` |
+| Reservation-scoped reconciliation works | [ledger/pipeline/reservation_reconciliation.py](../../ledger/pipeline/reservation_reconciliation.py) | `python -m ledger.pipeline.reservation_reconciliation test` |
+| Portable evidence bundles export/restore | [ledger/pipeline/evidence_bundle.py](../../ledger/pipeline/evidence_bundle.py) | `python -m ledger.pipeline.evidence_bundle test` |
 
 ## Judge
 
@@ -65,3 +65,4 @@ verification command that runs offline.
 | Reviewed PostgreSQL schema | [migrations/001_ledger_schema.sql](../../../migrations/001_ledger_schema.sql) | Manual review |
 | GitHub Actions CI runs all offline tests | [.github/workflows/ledger-checks.yml](../../../.github/workflows/ledger-checks.yml) | Push to `main` or open a PR |
 | Rumpty Cloud deployment path | [docs/deployment.md](../../../docs/deployment.md), [Dockerfile](../../../Dockerfile) | `python -m ledger doctor --check-database`, then follow the deployment guide and `GET /health` |
+

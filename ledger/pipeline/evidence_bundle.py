@@ -1,8 +1,8 @@
-"""Day 22: portable reservation evidence bundle primitives.
+"""Portable reservation evidence bundle primitives.
 
-    python day22.py test
-    python day22.py export --reservation RESERVATION_UUID --output PATH.zip
-    python day22.py restore --bundle PATH.zip
+    python -m ledger.pipeline.evidence_bundle test
+    python -m ledger.pipeline.evidence_bundle export --reservation RESERVATION_UUID --output PATH.zip
+    python -m ledger.pipeline.evidence_bundle restore --bundle PATH.zip
 """
 
 from __future__ import annotations
@@ -20,11 +20,11 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
-from day4 import connect
-from day16 import canonical_hash
-from day19 import validate_candidate
-from day20 import validate_context
-from day21 import require_finished_candidate, validate_association
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.spend_plan import canonical_hash
+from ledger.pipeline.reservation_recovery import validate_candidate
+from ledger.pipeline.execution_context import validate_context
+from ledger.pipeline.reservation_reconciliation import require_finished_candidate, validate_association
 
 
 VERSION = "ledger-evidence-bundle-v1"

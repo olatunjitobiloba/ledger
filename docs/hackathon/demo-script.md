@@ -68,7 +68,7 @@ Highlight:
 Run a key evaluation module:
 
 ```bash
-python day22.py test
+python -m ledger.pipeline.evidence_bundle test
 ```
 
 Explain the evidence chain:
@@ -80,7 +80,7 @@ Explain the evidence chain:
 Show the regression gate:
 
 ```bash
-python day6.py test
+python -m ledger.pipeline.regression test
 ```
 
 "This compares stored results. Exit code 0 means PASS, 1 means BLOCK,
@@ -115,6 +115,6 @@ If the demo machine has no internet:
 
 1. All commands above work without network access.
 2. Skip `--check-database` in the doctor command.
-3. Use `python day6.py test` instead of live evaluation.
+3. Use `python -m ledger.pipeline.regression test` instead of live evaluation.
 4. The entire demo runs from a clean checkout with `pip install -r
    requirements.txt` as the only setup step.

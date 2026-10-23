@@ -92,9 +92,9 @@ def _local_secret_names(path: Path = Path(".env")) -> set[str]:
 
 
 def _database_connect():
-    """Import Day 4 only for an explicit database check without leaking loader output."""
+    """Import the evaluation run store only for an explicit database check without leaking loader output."""
     with contextlib.redirect_stderr(io.StringIO()):
-        from day4 import connect
+        from ledger.pipeline.evaluation_runs import connect
 
     return connect()
 

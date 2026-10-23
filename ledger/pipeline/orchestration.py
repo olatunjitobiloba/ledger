@@ -1,9 +1,9 @@
-"""Day 14: rehearse the complete containerized evaluation pipeline.
+"""Rehearse the complete containerized evaluation pipeline.
 
-    python day14.py test
-    python day14.py run --image registry/image@sha256:<digest> ...
+    python -m ledger.pipeline.orchestration test
+    python -m ledger.pipeline.orchestration run --image registry/image@sha256:<digest> ...
 
-All evidence-producing steps run inside the pinned Day 13 runtime image.
+All evidence-producing steps run inside the pinned evaluation image.
 Step output is written to local logs instead of the summary report.
 """
 
@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day11 import clean_commit
-from day13 import container_command, generation_artifact, inspect_image, validate_binding
-from day20 import context_from_environment
+from ledger.pipeline.provenance import clean_commit
+from ledger.pipeline.container_binding import container_command, generation_artifact, inspect_image, validate_binding
+from ledger.pipeline.execution_context import context_from_environment
 
 
 VERSION = "ledger-rehearsal-v1"
@@ -74,7 +74,8 @@ def judge_command(
     command = container_command(
         binding,
         [
-            "day7.py",
+            "-m",
+            "ledger.pipeline.prompt_evaluation",
             "evaluate",
             "--artifact",
             artifact,
@@ -179,7 +180,8 @@ def rehearsal(args: argparse.Namespace) -> int:
             "generation",
             [
                 sys.executable,
-                "day13.py",
+                "-m",
+                "ledger.pipeline.container_binding",
                 "generate",
                 "--image",
                 args.image,
@@ -221,7 +223,7 @@ def rehearsal(args: argparse.Namespace) -> int:
             "security_scan",
             container_command(
                 binding,
-                ["day8.py", "scan-run", "--run-id", str(candidate_id)],
+                ["-m", "ledger.pipeline.injection_scan", "scan-run", "--run-id", str(candidate_id)],
             ),
         )
         require_success(code, "Security scan")
@@ -230,7 +232,7 @@ def rehearsal(args: argparse.Namespace) -> int:
             report,
             directory,
             "cost_backfill",
-            container_command(binding, ["day5.py", "backfill"]),
+            container_command(binding, ["-m", "ledger.pipeline.costs", "backfill"]),
         )
         require_success(code, "Cost backfill")
 
@@ -243,7 +245,8 @@ def rehearsal(args: argparse.Namespace) -> int:
             "release_check",
             [
                 sys.executable,
-                "day13.py",
+                "-m",
+                "ledger.pipeline.container_binding",
                 "check",
                 "--image",
                 args.image,
@@ -330,7 +333,8 @@ class RehearsalTests(unittest.TestCase):
                 "GROQ_API_KEY",
                 binding["image_id"],
                 "python",
-                "day7.py",
+                "-m",
+                "ledger.pipeline.prompt_evaluation",
             ],
         ):
             command = judge_command(binding, "results/day7/example.json", 1)

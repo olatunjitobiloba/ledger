@@ -4,33 +4,32 @@ import sys
 import unittest
 
 
-LEGACY_IMPORT_NAMES = (
-    "day3",
-    "day4",
-    "day5",
-    "day6",
-    "day7",
-    "day8",
-    "day9",
-    "day11",
-    "day12",
-    "day13",
-    "day14",
-    "day15",
-    "day16",
-    "day17",
-    "day18",
-    "day19",
-    "day20",
-    "day21",
-    "day22",
+PIPELINE_MODULES = (
+    "ledger.pipeline.golden_set",
+    "ledger.pipeline.evaluation_runs",
+    "ledger.pipeline.costs",
+    "ledger.pipeline.regression",
+    "ledger.pipeline.prompt_evaluation",
+    "ledger.pipeline.injection_scan",
+    "ledger.pipeline.release_policy",
+    "ledger.pipeline.provenance",
+    "ledger.pipeline.runtime_binding",
+    "ledger.pipeline.container_binding",
+    "ledger.pipeline.orchestration",
+    "ledger.pipeline.preflight",
+    "ledger.pipeline.spend_plan",
+    "ledger.pipeline.cost_reconciliation",
+    "ledger.pipeline.spend_reservations",
+    "ledger.pipeline.reservation_recovery",
+    "ledger.pipeline.execution_context",
+    "ledger.pipeline.reservation_reconciliation",
+    "ledger.pipeline.evidence_bundle",
 )
-LEGACY_MODULES = tuple(f"{name}.py" for name in LEGACY_IMPORT_NAMES)
 
 
 class CompatibilityTests(unittest.TestCase):
-    def test_legacy_modules_import(self) -> None:
-        for name in LEGACY_IMPORT_NAMES:
+    def test_pipeline_modules_import(self) -> None:
+        for name in PIPELINE_MODULES:
             with self.subTest(module=name):
                 self.assertIsNotNone(importlib.import_module(name))
 
@@ -43,11 +42,11 @@ class CompatibilityTests(unittest.TestCase):
         for symbol in (export_reservation, restore_bundle, reconcile, app, Ledger):
             self.assertIsNotNone(symbol)
 
-    def test_legacy_help_commands(self) -> None:
-        for module in LEGACY_MODULES:
+    def test_module_help_commands(self) -> None:
+        for module in PIPELINE_MODULES:
             with self.subTest(module=module):
                 result = subprocess.run(
-                    [sys.executable, module, "--help"],
+                    [sys.executable, "-m", module, "--help"],
                     check=False,
                     capture_output=True,
                     text=True,

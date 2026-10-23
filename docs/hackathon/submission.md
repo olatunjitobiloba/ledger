@@ -75,22 +75,22 @@ Application
 | SDK redaction and privacy controls work | `python -m unittest test_api -v` (free-tier test) |
 | Judge parses, coerces, and discriminates | `python -m unittest test_judge -v` (33 tests) |
 | Strict-rubric Groq judge parses schema-constrained JSON | `python -m unittest test_judge_groq -v` (6 tests) |
-| Cost attribution from provider tokens | `python day5.py test` |
-| Regression gate blocks below threshold | `python day6.py test` |
-| Injection monitoring flags suspicious text | `python day8.py test` |
-| Release policy aggregates multiple checks | `python day9.py test` |
-| Commit provenance binds evidence to Git | `python day11.py test` |
-| Runtime fingerprint prevents config drift | `python day12.py test` |
-| Container binding pins evaluation runtime | `python day13.py test` |
-| Evaluation orchestration runs end-to-end | `python day14.py test` |
-| Preflight catches issues before spend | `python day15.py test` |
-| Spend plans require explicit approval | `python day16.py test` |
-| Cost reconciliation matches plan to usage | `python day17.py test` |
-| Reservations enforce single-use execution | `python day18.py test` |
-| Interrupted reservations are recoverable | `python day19.py test` |
-| Execution context is validated | `python day20.py test` |
-| Reservation-scoped reconciliation works | `python day21.py test` |
-| Portable evidence bundles export/restore | `python day22.py test` |
+| Cost attribution from provider tokens | `python -m ledger.pipeline.costs test` |
+| Regression gate blocks below threshold | `python -m ledger.pipeline.regression test` |
+| Injection monitoring flags suspicious text | `python -m ledger.pipeline.injection_scan test` |
+| Release policy aggregates multiple checks | `python -m ledger.pipeline.release_policy test` |
+| Commit provenance binds evidence to Git | `python -m ledger.pipeline.provenance test` |
+| Runtime fingerprint prevents config drift | `python -m ledger.pipeline.runtime_binding test` |
+| Container binding pins evaluation runtime | `python -m ledger.pipeline.container_binding test` |
+| Evaluation orchestration runs end-to-end | `python -m ledger.pipeline.orchestration test` |
+| Preflight catches issues before spend | `python -m ledger.pipeline.preflight test` |
+| Spend plans require explicit approval | `python -m ledger.pipeline.spend_plan test` |
+| Cost reconciliation matches plan to usage | `python -m ledger.pipeline.cost_reconciliation test` |
+| Reservations enforce single-use execution | `python -m ledger.pipeline.spend_reservations test` |
+| Interrupted reservations are recoverable | `python -m ledger.pipeline.reservation_recovery test` |
+| Execution context is validated | `python -m ledger.pipeline.execution_context test` |
+| Reservation-scoped reconciliation works | `python -m ledger.pipeline.reservation_reconciliation test` |
+| Portable evidence bundles export/restore | `python -m ledger.pipeline.evidence_bundle test` |
 | Stable CLI and doctor run offline | `python -m unittest tests.test_cli -v` |
 | Legacy compatibility preserved | `python -m unittest tests.test_compatibility -v` |
 | Rumpty deployment path with managed PostgreSQL | Follow `docs/deployment.md`, then `GET /health` |
@@ -118,9 +118,9 @@ python -m unittest test_judge test_judge_groq test_api -v
 python -m unittest tests.test_compatibility tests.test_cli -v
 
 # 3. Run evaluation module tests
-python day22.py test   # portable evidence
-python day6.py test    # regression gate
-python day8.py test    # injection monitoring
+python -m ledger.pipeline.evidence_bundle test   # portable evidence
+python -m ledger.pipeline.regression test    # regression gate
+python -m ledger.pipeline.injection_scan test    # injection monitoring
 
 # 4. Show the stable CLI
 python -m ledger --help

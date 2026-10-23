@@ -1,4 +1,4 @@
-"""Day 18: reserve estimated spend and enforce single-use execution."""
+"""Reserve estimated spend and enforce single-use execution."""
 
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from day4 import connect
-from day16 import build_payload, canonical_hash, money, validate_plan
-from day20 import PLAN_ENV, RESERVATION_ENV, require_candidate_context, validate_context
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.spend_plan import build_payload, canonical_hash, money, validate_plan
+from ledger.pipeline.execution_context import PLAN_ENV, RESERVATION_ENV, require_candidate_context, validate_context
 
 
 SCHEMA = [
@@ -198,7 +198,7 @@ def find_rehearsal_report(stdout: str) -> Path:
         )
     ]
     if len(paths) != 1:
-        raise ValueError("Could not identify one Day 14 report.")
+        raise ValueError("Could not identify one orchestration report.")
 
     root = Path.cwd().resolve()
     resolved = Path(paths[0]).resolve()
@@ -278,7 +278,8 @@ def run(args: argparse.Namespace) -> int:
             completed = subprocess.run(
                 [
                     sys.executable,
-                    "day16.py",
+                    "-m",
+                    "ledger.pipeline.spend_plan",
                     "run",
                     "--plan",
                     str(plan_path),

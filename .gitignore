@@ -30,8 +30,8 @@ ENV/
 htmlcov/
 .tox/
 
-# Eval output. Results belong in Postgres (Day 4), not in git.
-# Use `python day22.py export` or `python -m ledger evidence export` to
+# Eval output. Results belong in PostgreSQL, not in git.
+# Use `python -m ledger evidence export` to
 # produce a portable evidence bundle instead of committing raw results.
 results/
 *.jsonl
@@ -51,3 +51,4 @@ data/blobs/
 *.swp
 .DS_Store
 Thumbs.db
+

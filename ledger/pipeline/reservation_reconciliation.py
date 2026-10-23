@@ -1,4 +1,4 @@
-"""Day 21: reconcile a finished reservation without changing database state."""
+"""Reconcile a finished reservation without changing database state."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day4 import connect
-from day16 import canonical_hash
-from day19 import validate_candidate, validate_report
-from day20 import validate_context
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.spend_plan import canonical_hash
+from ledger.pipeline.reservation_recovery import validate_candidate, validate_report
+from ledger.pipeline.execution_context import validate_context
 
 
 VERSION = "ledger-reservation-reconciliation-v1"
@@ -208,7 +208,7 @@ def reconcile(args: argparse.Namespace) -> int:
                 "rehearsal_report_sha256": rehearsal_hash,
                 "association_verified": True,
                 "association_snapshot_scope": (
-                    "Read-only database snapshot before Day 17 execution"
+                    "Read-only database snapshot before cost reconciliation"
                 ),
             }
         )
@@ -221,7 +221,8 @@ def reconcile(args: argparse.Namespace) -> int:
         result = subprocess.run(
             [
                 sys.executable,
-                "day17.py",
+                "-m",
+                "ledger.pipeline.cost_reconciliation",
                 "reconcile",
                 "--plan",
                 str(plan_path),

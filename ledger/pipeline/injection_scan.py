@@ -1,8 +1,8 @@
-"""Day 8: heuristic prompt-injection monitoring over saved Day 7 artifacts.
+"""Heuristic prompt-injection monitoring over saved prompt-evaluation artifacts.
 
-    python day8.py test
-    python day8.py inspect --file attack.txt
-    python day8.py scan-run --run-id <UUID>
+    python -m ledger.pipeline.injection_scan test
+    python -m ledger.pipeline.injection_scan inspect --file attack.txt
+    python -m ledger.pipeline.injection_scan scan-run --run-id <UUID>
 
 Monitoring only. A match is suspicious wording, not proof of an attack; a zero
 index is not proof of safety. Nothing is blocked or modified.
@@ -21,7 +21,7 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from day4 import connect
+from ledger.pipeline.evaluation_runs import connect
 
 SCANNER_VERSION = "ledger-injection-heuristics-v1"
 MAX_CHARACTERS = 50000

@@ -41,10 +41,10 @@ python -m unittest test_judge test_judge_groq test_api -v
 python -m unittest tests.test_compatibility tests.test_cli -v
 
 # Run individual evaluation module tests
-python day22.py test   # portable evidence bundles
-python day6.py test    # regression gate
-python day8.py test    # injection monitoring
-python day9.py test    # release-readiness policy
+python -m ledger.pipeline.evidence_bundle test   # portable evidence bundles
+python -m ledger.pipeline.regression test    # regression gate
+python -m ledger.pipeline.injection_scan test    # injection monitoring
+python -m ledger.pipeline.release_policy test    # release-readiness policy
 ```
 
 Every command above exits 0 on a clean checkout with no credentials configured.
@@ -189,13 +189,13 @@ container-bound evidence that a model change did not regress:
 
 ```bash
 # Versioned golden-set evaluation
-python day3.py run --reviewed-by "Tobi" --repeats 3
+python -m ledger.pipeline.golden_set run --reviewed-by "Tobi" --repeats 3
 
 # Regression gate (compares stored results, no provider calls)
-python day6.py compare --baseline <UUID> --candidate <UUID> --allowed-drop 0.05
+python -m ledger.pipeline.regression compare --baseline <UUID> --candidate <UUID> --allowed-drop 0.05
 
 # Release-readiness policy check
-python day9.py check --baseline <UUID> --candidate <UUID>
+python -m ledger.pipeline.release_policy check --baseline <UUID> --candidate <UUID>
 
 # Export portable evidence bundle
 python -m ledger evidence export --reservation <UUID> --output evidence.zip
@@ -231,22 +231,22 @@ python -m unittest test_judge test_judge_groq test_api -v      # 43 product test
 python -m unittest tests.test_compatibility tests.test_cli -v  # 12 modernization tests
 
 # Individual evaluation modules (each has a self-contained test mode)
-python day5.py test    # cost attribution
-python day6.py test    # regression gate
-python day8.py test    # injection monitoring
-python day9.py test    # release policy
-python day11.py test   # commit provenance
-python day12.py test   # runtime binding
-python day13.py test   # container binding
-python day14.py test   # evaluation orchestration
-python day15.py test   # preflight validation
-python day16.py test   # spend planning
-python day17.py test   # cost reconciliation
-python day18.py test   # spend reservations
-python day19.py test   # reservation recovery
-python day20.py test   # execution context
-python day21.py test   # reservation-scoped reconciliation
-python day22.py test   # portable evidence bundles
+python -m ledger.pipeline.costs test    # cost attribution
+python -m ledger.pipeline.regression test    # regression gate
+python -m ledger.pipeline.injection_scan test    # injection monitoring
+python -m ledger.pipeline.release_policy test    # release policy
+python -m ledger.pipeline.provenance test   # commit provenance
+python -m ledger.pipeline.runtime_binding test   # runtime binding
+python -m ledger.pipeline.container_binding test   # container binding
+python -m ledger.pipeline.orchestration test   # evaluation orchestration
+python -m ledger.pipeline.preflight test   # preflight validation
+python -m ledger.pipeline.spend_plan test   # spend planning
+python -m ledger.pipeline.cost_reconciliation test   # cost reconciliation
+python -m ledger.pipeline.spend_reservations test   # spend reservations
+python -m ledger.pipeline.reservation_recovery test   # reservation recovery
+python -m ledger.pipeline.execution_context test   # execution context
+python -m ledger.pipeline.reservation_reconciliation test   # reservation-scoped reconciliation
+python -m ledger.pipeline.evidence_bundle test   # portable evidence bundles
 ```
 
 GitHub Actions runs all offline tests on every push to `main` and on pull
