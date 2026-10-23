@@ -1,8 +1,8 @@
-"""Day 7: generate application answers, evaluate them, keep usage separate.
+"""Generate application answers, evaluate them, keep usage separate.
 
-    python day7.py generate --prompt-file prompts/baseline.txt \
+    python -m ledger.pipeline.prompt_evaluation generate --prompt-file prompts/baseline.txt \
         --app-version baseline-v1 --reviewed-by "Tobi"
-    python day7.py evaluate --artifact results/day7/<run>.json --repeats 1
+    python -m ledger.pipeline.prompt_evaluation evaluate --artifact results/day7/<run>.json --repeats 1
 
 Application outputs are frozen into a local artifact before judging, so judge
 reruns never regenerate answers. Judge usage is written to ledger_eval_results;
@@ -25,8 +25,8 @@ from groq import Groq
 from psycopg.types.json import Jsonb
 
 import judge_groq as judge
-from day3 import load_dataset
-from day4 import SCHEMA, build_config, connect, print_summary
+from ledger.pipeline.golden_set import load_dataset
+from ledger.pipeline.evaluation_runs import SCHEMA, build_config, connect, print_summary
 
 APP_SCHEMA = """
 CREATE TABLE IF NOT EXISTS ledger_application_outputs (

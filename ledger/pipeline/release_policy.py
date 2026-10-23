@@ -1,7 +1,7 @@
-"""Day 9: release-readiness policy over stored evaluation evidence.
+"""Release-readiness policy over stored evaluation evidence.
 
-    python day9.py test
-    python day9.py check --baseline <UUID> --candidate <UUID>
+    python -m ledger.pipeline.release_policy test
+    python -m ledger.pipeline.release_policy check --baseline <UUID> --candidate <UUID>
 
 No provider calls are made. Security findings request review; they do not
 automatically establish that an input or output was malicious.
@@ -20,10 +20,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day4 import connect
-from day5 import PRICE_VERSION
-from day6 import compare, load_run
-from day8 import RULESET_SHA256, SCANNER_VERSION
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.costs import PRICE_VERSION
+from ledger.pipeline.regression import compare, load_run
+from ledger.pipeline.injection_scan import RULESET_SHA256, SCANNER_VERSION
 
 
 POLICY_VERSION = "ledger-release-policy-v1"

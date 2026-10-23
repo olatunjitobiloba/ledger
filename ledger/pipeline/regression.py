@@ -1,7 +1,7 @@
-"""Day 6: relative regression gate over saved Day 4 evaluation runs.
+"""Relative regression gate over stored evaluation runs.
 
-    python day6.py test
-    python day6.py compare --baseline <UUID> --candidate <UUID> --allowed-drop 0.05
+    python -m ledger.pipeline.regression test
+    python -m ledger.pipeline.regression compare --baseline <UUID> --candidate <UUID> --allowed-drop 0.05
 
 Exit codes: 0 PASS, 1 BLOCK, 2 INCONCLUSIVE.
 
@@ -23,7 +23,7 @@ from typing import Any
 
 import psycopg
 
-from day4 import connect
+from ledger.pipeline.evaluation_runs import connect
 
 GATE_VERSION = "ledger-regression-v1"
 COMPATIBILITY_FIELDS = (

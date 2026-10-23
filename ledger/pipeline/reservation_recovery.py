@@ -1,4 +1,4 @@
-"""Day 19: recover interrupted reservations from existing evidence."""
+"""Recover interrupted reservations from existing evidence."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from day4 import connect
-from day16 import VERSION as PLAN_VERSION, canonical_hash
-from day18 import associate
-from day20 import require_candidate_context, validate_context
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.spend_plan import VERSION as PLAN_VERSION, canonical_hash
+from ledger.pipeline.spend_reservations import associate
+from ledger.pipeline.execution_context import require_candidate_context, validate_context
 
 
 RECOVERABLE = {"RUNNING", "UNKNOWN"}

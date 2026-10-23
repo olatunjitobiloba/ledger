@@ -1,8 +1,8 @@
-"""Day 3: versioned golden set and repeated evaluation.
+"""Versioned golden set and repeated evaluation.
 
-    python day3.py init
-    python day3.py run --reviewed-by "Tobi" --repeats 1
-    python day3.py run --reviewed-by "Tobi" --repeats 3
+    python -m ledger.pipeline.golden_set init
+    python -m ledger.pipeline.golden_set run --reviewed-by "Tobi" --repeats 1
+    python -m ledger.pipeline.golden_set run --reviewed-by "Tobi" --repeats 3
 
 The dataset is written once, reviewed by a human, then treated as immutable:
 later changes get a new dataset version rather than overwriting golden-v1.json.
