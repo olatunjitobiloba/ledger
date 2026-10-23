@@ -1,8 +1,8 @@
-"""Day 12: bind release evidence to runtime configuration.
+"""Bind release evidence to runtime configuration.
 
-    python day12.py test
-    python day12.py generate --app-version candidate-v3 --reviewed-by "Tobi"
-    python day12.py check --baseline <UUID> --candidate <UUID>
+    python -m ledger.pipeline.runtime_binding test
+    python -m ledger.pipeline.runtime_binding generate --app-version candidate-v3 --reviewed-by "Tobi"
+    python -m ledger.pipeline.runtime_binding check --baseline <UUID> --candidate <UUID>
 
 This fingerprints tracked configuration, inputs, dependencies, and Python
 version before allowing a commit-bound release check to run.
@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day3 import load_dataset
-from day4 import connect
-from day11 import clean_commit, output_path, require_tracked
+from ledger.pipeline.golden_set import load_dataset
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.provenance import clean_commit, output_path, require_tracked
 
 
 BINDING_VERSION = "ledger-runtime-binding-v1"
@@ -46,7 +46,7 @@ def file_digest(path: str | Path) -> str:
 
 
 def build_binding() -> dict[str, Any]:
-    for path in (CONFIG_FILE, "requirements.txt", "day12.py"):
+    for path in (CONFIG_FILE, "requirements.txt", "ledger/pipeline/runtime_binding.py"):
         require_tracked(str(path))
 
     config = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
@@ -68,7 +68,7 @@ def build_binding() -> dict[str, Any]:
         or config["max_completion_tokens"] != 2048
     ):
         raise ValueError(
-            "Day 7 currently supports temperature=0 and token limit=2048."
+            "Prompt evaluation currently supports temperature=0 and token limit=2048."
         )
     if not isinstance(config["app_model"], str) or not config["app_model"].strip():
         raise ValueError("Application model must be a nonempty string.")
@@ -132,7 +132,8 @@ def generate(args: argparse.Namespace) -> None:
     completed = subprocess.run(
         [
             sys.executable,
-            "day11.py",
+            "-m",
+            "ledger.pipeline.provenance",
             "generate",
             "--prompt-file",
             config["prompt_file"],
@@ -220,7 +221,8 @@ def check(args: argparse.Namespace) -> int:
         completed = subprocess.run(
             [
                 sys.executable,
-                "day11.py",
+                "-m",
+                "ledger.pipeline.provenance",
                 "check",
                 "--baseline",
                 str(args.baseline),

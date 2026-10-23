@@ -1,8 +1,8 @@
-"""Day 13: bind evidence to a digest-pinned container runtime.
+"""Bind evidence to a digest-pinned container runtime.
 
-    python day13.py test
-    python day13.py generate --image registry/image@sha256:<digest>
-    python day13.py check --image registry/image@sha256:<digest> ...
+    python -m ledger.pipeline.container_binding test
+    python -m ledger.pipeline.container_binding generate --image registry/image@sha256:<digest>
+    python -m ledger.pipeline.container_binding check --image registry/image@sha256:<digest> ...
 
 The source checkout is mounted read-only and results are mounted read-write.
 The image contains dependencies; it is not the deployable application image.
@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day4 import connect
-from day11 import clean_commit
-from day20 import context_from_environment
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.provenance import clean_commit
+from ledger.pipeline.execution_context import context_from_environment
 
 
 VERSION = "ledger-container-binding-v1"
@@ -164,7 +164,7 @@ def generate(args: argparse.Namespace) -> None:
     completed = run_container(
         binding,
         [
-            "day12.py",
+            "ledger/pipeline/runtime_binding.py",
             "generate",
             "--app-version",
             args.app_version,
@@ -227,7 +227,7 @@ def check(args: argparse.Namespace) -> int:
         completed = run_container(
             binding,
             [
-                "day12.py",
+                "ledger/pipeline/runtime_binding.py",
                 "check",
                 "--baseline",
                 str(args.baseline),

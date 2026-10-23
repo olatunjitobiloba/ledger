@@ -10,7 +10,8 @@ from fastapi.testclient import TestClient
 
 # Tests must never inherit a developer's Rumpty credentials or create records
 # in production. These are set before importing the application configuration.
-os.environ["LEDGER_DATABASE_URL"] = "sqlite:///./data/test_ledger.db"
+_TEST_DB_DIR = Path(tempfile.mkdtemp(prefix="ledger-api-test-"))
+os.environ["LEDGER_DATABASE_URL"] = f"sqlite:///{(_TEST_DB_DIR / 'test_ledger.db').as_posix()}"
 os.environ["LEDGER_AUTO_CREATE_SCHEMA"] = "true"
 os.environ["LEDGER_ADMIN_TOKEN"] = "test-admin-token"
 

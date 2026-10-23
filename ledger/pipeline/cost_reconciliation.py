@@ -1,4 +1,4 @@
-"""Day 17: reconcile a spend plan with saved evaluation usage."""
+"""Reconcile a spend plan with saved evaluation usage."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from day4 import connect
-from day5 import PRICE_VERSION
-from day16 import (
+from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.costs import PRICE_VERSION
+from ledger.pipeline.spend_plan import (
     POLICY_FILE,
     VERSION as PLAN_VERSION,
     calculate,
@@ -173,7 +173,7 @@ def summarize_application(
         )
 
     return {
-        "pricing_basis": "Day 16 policy rates",
+        "pricing_basis": "spend-plan policy rates",
         "planned_usd": planned,
         "recorded_usage_estimated_subtotal_usd": str(known),
         "unknown_usage_cases": unknown,
@@ -277,7 +277,7 @@ def reconcile(args: argparse.Namespace) -> int:
             {
                 "application": application,
                 "judge": {
-                    "pricing_basis": "Day 5 attribution",
+                    "pricing_basis": "cost attribution",
                     "pricing_version": PRICE_VERSION,
                     "planned_usd": payload["cost_plan"]["judge"]["estimated_usd"],
                     "attributed_estimated_subtotal_usd": str(judge_subtotal),
@@ -285,8 +285,8 @@ def reconcile(args: argparse.Namespace) -> int:
                     "failed_evaluations": failed_judgments,
                     "variance_calculated": False,
                     "reason": (
-                        "Day 5 rates have not been verified against the "
-                        "Day 16 judge pricing policy."
+                        "Cost rates have not been verified against the "
+                        "spend-plan judge pricing policy."
                     ),
                 },
                 "combined_known_estimated_subtotal_usd": str(

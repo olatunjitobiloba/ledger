@@ -1,8 +1,8 @@
-"""Day 11: bind release evidence to the exact Git commit.
+"""Bind release evidence to the exact Git commit.
 
-    python day11.py test
-    python day11.py generate --prompt-file prompts/candidate.txt
-    python day11.py check --baseline <UUID> --candidate <UUID>
+    python -m ledger.pipeline.provenance test
+    python -m ledger.pipeline.provenance generate --prompt-file prompts/candidate.txt
+    python -m ledger.pipeline.provenance check --baseline <UUID> --candidate <UUID>
 
 Generation requires a clean repository. Checks reject candidate evidence whose
 generation-time provenance does not match the expected commit.
@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from day4 import connect
+from ledger.pipeline.evaluation_runs import connect
 
 
 PROVENANCE_VERSION = "ledger-git-provenance-v1"
@@ -37,7 +37,7 @@ def git(*args: str) -> str:
 def repository_root() -> Path:
     root = Path(git("rev-parse", "--show-toplevel")).resolve()
     if Path.cwd().resolve() != root:
-        raise ValueError("Run day11.py from the repository root.")
+        raise ValueError("Run ledger.pipeline.provenance from the repository root.")
     return root
 
 
@@ -89,13 +89,14 @@ def validate_provenance(
 
 def generate(args: argparse.Namespace) -> None:
     before = clean_commit()
-    for path in ("day7.py", "judge.py", "day11.py", args.prompt_file):
+    for path in ("ledger/pipeline/prompt_evaluation.py", "judge.py", "ledger/pipeline/provenance.py", args.prompt_file):
         require_tracked(path)
 
     completed = subprocess.run(
         [
             sys.executable,
-            "day7.py",
+            "-m",
+            "ledger.pipeline.prompt_evaluation",
             "generate",
             "--prompt-file",
             args.prompt_file,
@@ -181,7 +182,8 @@ def check(args: argparse.Namespace) -> int:
         completed = subprocess.run(
             [
                 sys.executable,
-                "day9.py",
+                "-m",
+                "ledger.pipeline.release_policy",
                 "check",
                 "--baseline",
                 str(args.baseline),

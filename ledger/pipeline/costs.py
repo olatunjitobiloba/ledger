@@ -1,7 +1,7 @@
-"""Day 5: estimate Groq judge cost from provider-reported token usage.
+"""Estimate Groq judge cost from provider-reported token usage.
 
-    python day5.py test
-    python day5.py backfill
+    python -m ledger.pipeline.costs test
+    python -m ledger.pipeline.costs backfill
 
 Estimates only. Actual billing, retries that were never returned, and historical
 price changes are out of scope. Unknown is stored as NULL, never zero.
@@ -16,7 +16,7 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
-from day4 import connect
+from ledger.pipeline.evaluation_runs import connect
 
 PRICE_VERSION = "groq-published-2026-10-22-v1"
 PRICE_SOURCE = "https://console.groq.com/docs/models"

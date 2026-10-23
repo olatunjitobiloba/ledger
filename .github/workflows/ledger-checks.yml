@@ -47,57 +47,65 @@ jobs:
       - name: Check Python syntax
         run: |
           python -m py_compile \
-            judge.py day3.py day4.py day5.py \
-            day6.py day7.py day8.py day9.py day11.py day12.py \
-            day13.py day14.py day15.py day16.py day17.py day18.py day19.py day20.py day21.py day22.py
+            judge.py judge_groq.py ledger/pipeline/golden_set.py ledger/pipeline/evaluation_runs.py ledger/pipeline/costs.py \
+            ledger/pipeline/regression.py ledger/pipeline/prompt_evaluation.py ledger/pipeline/injection_scan.py ledger/pipeline/release_policy.py ledger/pipeline/provenance.py ledger/pipeline/runtime_binding.py \
+            ledger/pipeline/container_binding.py ledger/pipeline/orchestration.py ledger/pipeline/preflight.py ledger/pipeline/spend_plan.py ledger/pipeline/cost_reconciliation.py ledger/pipeline/spend_reservations.py ledger/pipeline/reservation_recovery.py ledger/pipeline/execution_context.py ledger/pipeline/reservation_reconciliation.py ledger/pipeline/evidence_bundle.py \
+            ledger/__main__.py ledger/cli.py
+
+      - name: Test product API and judge
+        run: python -m unittest test_judge test_judge_groq test_api -v
+
+      - name: Test compatibility and stable CLI
+        run: python -m unittest tests.test_compatibility tests.test_cli -v
+
 
       - name: Test cost attribution
-        run: python day5.py test
+        run: python -m ledger.pipeline.costs test
 
       - name: Test regression gate
-        run: python day6.py test
+        run: python -m ledger.pipeline.regression test
 
       - name: Test injection monitoring
-        run: python day8.py test
+        run: python -m ledger.pipeline.injection_scan test
 
       - name: Test release policy
-        run: python day9.py test
+        run: python -m ledger.pipeline.release_policy test
 
       - name: Test commit provenance
-        run: python day11.py test
+        run: python -m ledger.pipeline.provenance test
 
       - name: Test runtime binding
-        run: python day12.py test
+        run: python -m ledger.pipeline.runtime_binding test
 
       - name: Test container binding
-        run: python day13.py test
+        run: python -m ledger.pipeline.container_binding test
 
       - name: Test evaluation orchestration
-        run: python day14.py test
+        run: python -m ledger.pipeline.orchestration test
 
       - name: Test preflight validation
-        run: python day15.py test
+        run: python -m ledger.pipeline.preflight test
 
       - name: Test spend planning
-        run: python day16.py test
+        run: python -m ledger.pipeline.spend_plan test
 
       - name: Test cost reconciliation
-        run: python day17.py test
+        run: python -m ledger.pipeline.cost_reconciliation test
 
       - name: Test spend reservations
-        run: python day18.py test
+        run: python -m ledger.pipeline.spend_reservations test
 
       - name: Test reservation recovery
-        run: python day19.py test
+        run: python -m ledger.pipeline.reservation_recovery test
 
       - name: Test execution context
-        run: python day20.py test
+        run: python -m ledger.pipeline.execution_context test
 
       - name: Test reservation-scoped reconciliation
-        run: python day21.py test
+        run: python -m ledger.pipeline.reservation_reconciliation test
 
       - name: Test portable evidence bundles
-        run: python day22.py test
+        run: python -m ledger.pipeline.evidence_bundle test
 
   release-check:
     name: Check saved release evidence
@@ -152,7 +160,7 @@ jobs:
 
       - name: Check container-bound release evidence
         run: |
-          python day13.py check \
+          python -m ledger.pipeline.container_binding check \
             --image "$EVAL_IMAGE" \
             --baseline "$BASELINE_RUN_ID" \
             --candidate "$CANDIDATE_RUN_ID" \
