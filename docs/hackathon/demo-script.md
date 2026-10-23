@@ -12,7 +12,7 @@ offline without a database, provider key, or network access.
 > a release was safe."
 >
 > "Ledger solves this: asynchronous observability, automated evaluation gates,
-> spend control, and portable release evidence — deployed on Rumpty Cloud."
+> spend control, and portable release evidence — built for Rumpty Cloud."
 
 ## Minute 0:30 – Repository readiness (30 seconds)
 
@@ -51,7 +51,7 @@ dependencies. It never exposes secret values — only present/missing."
 Run the core product tests:
 
 ```bash
-python -m unittest test_api test_judge -v
+python -m unittest test_api test_judge test_judge_groq -v
 ```
 
 Highlight:
@@ -59,7 +59,9 @@ Highlight:
   project isolation, privacy tier enforcement.
 - **33 judge tests** — payload parsing, score coercion, discrimination checks,
   key diagnostics, dotenv safety.
-- "All 37 tests pass with no database, no provider key, no network."
+- **6 strict-rubric Groq judge tests** — schema-constrained JSON, error
+  handling, human-label agreement logic.
+- "All 43 product tests pass with no database, no provider key, no network."
 
 ## Minute 1:45 – Evaluation evidence chain (45 seconds)
 
@@ -95,9 +97,9 @@ python -m ledger --help
 Explain:
 - "The CLI wraps the existing API, worker, and evidence commands into a
   stable, discoverable surface."
-- "On Rumpty Cloud, it's deployed as two processes from one Docker image:
+- "On Rumpty Cloud, it runs as two processes from one Docker image:
   API on Uvicorn, worker polling the database queue."
-- "49 offline tests run in GitHub Actions on every push."
+- "55 offline tests run in GitHub Actions on every push."
 
 Close:
 > "This is what is proven. What I do not claim: this is not a full

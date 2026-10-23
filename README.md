@@ -2,7 +2,7 @@
 
 > Production AI reliability infrastructure — asynchronous observability,
 > automated evaluation gates, and portable release evidence for LLM
-> applications deployed on Rumpty Cloud.
+> applications, built for Rumpty Cloud.
 
 Ledger ensures that every AI model change ships with evidence that it did not
 regress. It records trace cost and injection-risk metadata without blocking the
@@ -36,8 +36,8 @@ These commands run without a database, provider key, or network access:
 # Verify the repository is ready
 python -m ledger doctor
 
-# Run the full offline test suite (37 product tests + 12 modernization tests)
-python -m unittest test_judge test_api -v
+# Run the full offline test suite (43 product tests + 12 modernization tests)
+python -m unittest test_judge test_judge_groq test_api -v
 python -m unittest tests.test_compatibility tests.test_cli -v
 
 # Run individual evaluation module tests
@@ -77,14 +77,14 @@ and never modifies application behavior.
 | Concern | How Ledger handles it |
 | --- | --- |
 | **Observability** | Async ingest, `202 Accepted`, database-backed queue, retries, dead-letter jobs |
-| **Evaluation** | Versioned golden set, GPT-4o-mini judge at temperature 0, discrimination checks |
-| **Regression gate** | `result_score < baseline_score − variance` with worst-case examples |
+| **Evaluation** | Versioned golden set, Groq-hosted gpt-oss judge at temperature 0, discrimination checks |
+| **Regression gate** | Per-case mean with an allowed absolute drop; any case beyond it blocks the release |
 | **Cost control** | Per-model pricing, spend plans, reservations, single-use enforcement, reconciliation |
 | **Evidence chain** | Commit provenance → runtime fingerprint → container digest → portable bundle |
 | **Privacy** | `capture_prompt` toggle, regex redaction (SDK and server), hashed API keys |
 | **Injection monitoring** | Heuristic prompt-injection tags on stored spans |
 | **Release policy** | Multi-check readiness gate: regression, injection, cost, provenance |
-| **CI** | 49 offline tests in GitHub Actions, no provider keys required |
+| **CI** | 55 offline tests in GitHub Actions, no provider keys required |
 
 ## Rumpty Cloud deployment
 
@@ -227,7 +227,7 @@ without running the full pipeline.
 
 ```bash
 # Full offline test suite
-python -m unittest test_judge test_api -v                      # 37 product tests
+python -m unittest test_judge test_judge_groq test_api -v      # 43 product tests
 python -m unittest tests.test_compatibility tests.test_cli -v  # 12 modernization tests
 
 # Individual evaluation modules (each has a self-contained test mode)
@@ -274,9 +274,9 @@ It adds no new behavior; it provides a stable, discoverable entry point.
 - **Not a full observability platform.** Ledger handles ingestion, cost, and
   evaluation gates. It does not provide dashboards, distributed tracing UIs,
   or log aggregation.
-- **Evaluation is model-dependent.** The judge uses GPT-4o-mini (or a
-  configured alternative) at temperature 0. Results depend on the judge
-  model's behavior.
+- **Evaluation is model-dependent.** The judge uses a Groq-hosted gpt-oss model
+  (`openai/gpt-oss-20b` in the evaluation pipeline, `openai/gpt-oss-120b` in
+  the API) at temperature 0. Results depend on the judge model's behavior.
 - **Injection monitoring is heuristic.** A match is suspicious wording, not
   proof of an attack. A zero score is not proof of safety.
 - **Cost estimates are approximate.** Provider-reported actual cost is used

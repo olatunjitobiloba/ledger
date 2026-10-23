@@ -64,4 +64,4 @@ verification command that runs offline.
 | Descriptive facades delegate without duplication | [ledger/evaluation/](../../../ledger/evaluation/) | `python -m unittest tests.test_compatibility.CompatibilityTests.test_descriptive_facades_import -v` |
 | Reviewed PostgreSQL schema | [migrations/001_ledger_schema.sql](../../../migrations/001_ledger_schema.sql) | Manual review |
 | GitHub Actions CI runs all offline tests | [.github/workflows/ledger-checks.yml](../../../.github/workflows/ledger-checks.yml) | Push to `main` or open a PR |
-| Rumpty Cloud deployment | [docs/deployment.md](../../../docs/deployment.md), [Dockerfile](../../../Dockerfile) | `GET /health` on deployed instance |
+| Rumpty Cloud deployment path | [docs/deployment.md](../../../docs/deployment.md), [Dockerfile](../../../Dockerfile) | `python -m ledger doctor --check-database`, then follow the deployment guide and `GET /health` |

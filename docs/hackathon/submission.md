@@ -3,8 +3,8 @@
 ## One-line pitch
 
 Ledger is production AI reliability infrastructure that ensures every model
-change ships with evidence it did not regress — built and deployed on Rumpty
-Cloud in 22 days.
+change ships with evidence it did not regress — built for Rumpty Cloud in
+22 days.
 
 ## The problem
 
@@ -41,13 +41,13 @@ Ledger provides four connected systems:
 - **Non-blocking by design.** The SDK deliberately ignores delivery failures.
   Observability never slows or breaks the host application.
 
-- **Offline-verifiable.** 49 tests run without a database, provider key, or
+- **Offline-verifiable.** 55 tests run without a database, provider key, or
   network access. Every claim in this submission can be verified by cloning the
   repository and running `python -m unittest discover -v`.
 
-- **Real deployment.** The API and worker are deployed on Rumpty Cloud with a
-  managed PostgreSQL database, SSL certificate verification, and a reviewed
-  migration-based schema.
+- **Production deployment path.** The API and worker ship from one Docker image
+  with a managed PostgreSQL database, SSL certificate verification, and a
+  reviewed migration-based schema. `docs/deployment.md` is the end-to-end path.
 
 ## Architecture
 
@@ -74,6 +74,7 @@ Application
 | Async ingest returns 202, never blocks | `python -m unittest test_api -v` |
 | SDK redaction and privacy controls work | `python -m unittest test_api -v` (free-tier test) |
 | Judge parses, coerces, and discriminates | `python -m unittest test_judge -v` (33 tests) |
+| Strict-rubric Groq judge parses schema-constrained JSON | `python -m unittest test_judge_groq -v` (6 tests) |
 | Cost attribution from provider tokens | `python day5.py test` |
 | Regression gate blocks below threshold | `python day6.py test` |
 | Injection monitoring flags suspicious text | `python day8.py test` |
@@ -92,13 +93,14 @@ Application
 | Portable evidence bundles export/restore | `python day22.py test` |
 | Stable CLI and doctor run offline | `python -m unittest tests.test_cli -v` |
 | Legacy compatibility preserved | `python -m unittest tests.test_compatibility -v` |
-| Rumpty deployment with managed PostgreSQL | `GET /health` on deployed instance |
+| Rumpty deployment path with managed PostgreSQL | Follow `docs/deployment.md`, then `GET /health` |
 
 ## Honest limitations
 
 - Not a full observability platform — no dashboards, distributed tracing UI,
   or log aggregation.
-- Evaluation quality depends on the judge model (GPT-4o-mini by default).
+- Evaluation quality depends on the judge model (Groq-hosted gpt-oss by
+  default; model and rubric versions are recorded with each run).
 - Injection monitoring is heuristic — a match is suspicion, not proof.
 - Cost estimates are approximate when provider-reported actual cost is
   unavailable.
@@ -112,7 +114,7 @@ Application
 python -m ledger doctor
 
 # 2. Run the full offline test suite
-python -m unittest test_judge test_api -v
+python -m unittest test_judge test_judge_groq test_api -v
 python -m unittest tests.test_compatibility tests.test_cli -v
 
 # 3. Run evaluation module tests
