@@ -1,0 +1,131 @@
+# Hackathon Submission: Ledger
+
+## One-line pitch
+
+Ledger is production AI reliability infrastructure that ensures every model
+change ships with evidence it did not regress — built and deployed on Rumpty
+Cloud in 22 days.
+
+## The problem
+
+AI teams ship model updates without a repeatable way to prove quality held.
+Manual spot-checks miss regressions. Cost is invisible until the invoice.
+Prompt injection is hard to detect. There is no portable proof that a release
+was safe.
+
+## The solution
+
+Ledger provides four connected systems:
+
+1. **Asynchronous observability** — a fire-and-forget SDK and API that records
+   trace cost and injection-risk metadata without blocking the host
+   application's AI response.
+
+2. **Automated evaluation gates** — versioned golden-set scoring with a
+   regression threshold that blocks releases below the safety floor.
+
+3. **Spend control** — estimated cost attribution, spend plans, single-use
+   reservations, and reconciliation to prevent budget overruns during
+   evaluation.
+
+4. **Portable release evidence** — commit-bound, runtime-bound,
+   container-bound evaluation bundles that can be exported, restored, and
+   verified on any machine.
+
+## What makes this different
+
+- **Evidence chain, not just metrics.** Every release links evaluation results
+  to the exact commit, runtime configuration, and container digest that
+  produced them. This chain is exportable and independently verifiable.
+
+- **Non-blocking by design.** The SDK deliberately ignores delivery failures.
+  Observability never slows or breaks the host application.
+
+- **Offline-verifiable.** 49 tests run without a database, provider key, or
+  network access. Every claim in this submission can be verified by cloning the
+  repository and running `python -m unittest discover -v`.
+
+- **Real deployment.** The API and worker are deployed on Rumpty Cloud with a
+  managed PostgreSQL database, SSL certificate verification, and a reviewed
+  migration-based schema.
+
+## Architecture
+
+```text
+Application
+  └─ Ledger SDK (fire-and-forget)
+       └─ POST /v1/ingest  ──▸  PostgreSQL job queue
+                                     │
+                  API ◂── Postgres metadata + blob storage
+                                     │
+                           Worker ──▸ Judge ──▸ Alerts
+                                     │
+                           Evaluation pipeline (offline)
+                             ├─ Golden-set scoring
+                             ├─ Regression gate
+                             ├─ Spend planning & reconciliation
+                             └─ Portable evidence bundles
+```
+
+## Proof points
+
+| Claim | Verification |
+| --- | --- |
+| Async ingest returns 202, never blocks | `python -m unittest test_api -v` |
+| SDK redaction and privacy controls work | `python -m unittest test_api -v` (free-tier test) |
+| Judge parses, coerces, and discriminates | `python -m unittest test_judge -v` (33 tests) |
+| Cost attribution from provider tokens | `python day5.py test` |
+| Regression gate blocks below threshold | `python day6.py test` |
+| Injection monitoring flags suspicious text | `python day8.py test` |
+| Release policy aggregates multiple checks | `python day9.py test` |
+| Commit provenance binds evidence to Git | `python day11.py test` |
+| Runtime fingerprint prevents config drift | `python day12.py test` |
+| Container binding pins evaluation runtime | `python day13.py test` |
+| Evaluation orchestration runs end-to-end | `python day14.py test` |
+| Preflight catches issues before spend | `python day15.py test` |
+| Spend plans require explicit approval | `python day16.py test` |
+| Cost reconciliation matches plan to usage | `python day17.py test` |
+| Reservations enforce single-use execution | `python day18.py test` |
+| Interrupted reservations are recoverable | `python day19.py test` |
+| Execution context is validated | `python day20.py test` |
+| Reservation-scoped reconciliation works | `python day21.py test` |
+| Portable evidence bundles export/restore | `python day22.py test` |
+| Stable CLI and doctor run offline | `python -m unittest tests.test_cli -v` |
+| Legacy compatibility preserved | `python -m unittest tests.test_compatibility -v` |
+| Rumpty deployment with managed PostgreSQL | `GET /health` on deployed instance |
+
+## Honest limitations
+
+- Not a full observability platform — no dashboards, distributed tracing UI,
+  or log aggregation.
+- Evaluation quality depends on the judge model (GPT-4o-mini by default).
+- Injection monitoring is heuristic — a match is suspicion, not proof.
+- Cost estimates are approximate when provider-reported actual cost is
+  unavailable.
+- Single-region Rumpty Cloud deployment; no multi-region failover.
+- No user-facing web dashboard; API and CLI access only.
+
+## Demo commands
+
+```bash
+# 1. Verify repository readiness (no database, no keys)
+python -m ledger doctor
+
+# 2. Run the full offline test suite
+python -m unittest test_judge test_api -v
+python -m unittest tests.test_compatibility tests.test_cli -v
+
+# 3. Run evaluation module tests
+python day22.py test   # portable evidence
+python day6.py test    # regression gate
+python day8.py test    # injection monitoring
+
+# 4. Show the stable CLI
+python -m ledger --help
+python -m ledger evidence export --help
+```
+
+## Team
+
+Built by Olatunji Oluwatobiloba Franklin as a solo project for the DevCenter
+Hacktoberfest hackathon.
