@@ -7,10 +7,10 @@ verification command that runs offline.
 
 | Claim | Source | Verification |
 | --- | --- | --- |
-| Async ingest returns 202 Accepted | [ledger_api/main.py](../../../ledger_api/main.py) | `python -m unittest test_api.TestApiContracts.test_ingest_returns_202_and_eventually_stores_cost_and_risk -v` |
+| Async ingest returns 202 Accepted | [ledger_api/main.py](../../../ledger_api/main.py) | `python -m unittest tests.test_api.TestApiContracts.test_ingest_returns_202_and_eventually_stores_cost_and_risk -v` |
 | SDK fires and forgets; ignores delivery failures | [ledger/sdk.py](../../../ledger/sdk.py) | `python -m unittest tests.test_api.TestApiContracts.test_frozen_single_span_sdk_contract_is_accepted -v` |
-| Project isolation via API keys | [ledger_api/services.py](../../../ledger_api/services.py) | `python -m unittest test_api.TestApiContracts.test_project_isolation -v` |
-| Free tier rejects extended retention | [ledger_api/main.py](../../../ledger_api/main.py) | `python -m unittest test_api.TestApiContracts.test_free_tier_rejects_extended_retention -v` |
+| Project isolation via API keys | [ledger_api/services.py](../../../ledger_api/services.py) | `python -m unittest tests.test_api.TestApiContracts.test_project_isolation -v` |
+| Free tier rejects extended retention | [ledger_api/main.py](../../../ledger_api/main.py) | `python -m unittest tests.test_api.TestApiContracts.test_free_tier_rejects_extended_retention -v` |
 
 ## Evaluation
 
