@@ -37,7 +37,7 @@ These commands run without a database, provider key, or network access:
 python -m ledger doctor
 
 # Run the full offline test suite (43 product tests + 12 modernization tests)
-python -m unittest test_judge test_judge_groq test_api -v
+python -m unittest tests.test_judge tests.test_judge_groq tests.test_api -v
 python -m unittest tests.test_compatibility tests.test_cli -v
 
 # Run individual evaluation module tests
@@ -153,7 +153,7 @@ curl -X POST http://127.0.0.1:8000/v1/ingest \
 ### Python SDK
 
 ```python
-from ledger_sdk import Ledger
+from ledger.sdk import Ledger
 
 client = Ledger("http://localhost:8000", api_key="<project-key>")
 await client.ingest([{
@@ -227,7 +227,7 @@ without running the full pipeline.
 
 ```bash
 # Full offline test suite
-python -m unittest test_judge test_judge_groq test_api -v      # 43 product tests
+python -m unittest tests.test_judge tests.test_judge_groq tests.test_api -v      # 43 product tests
 python -m unittest tests.test_compatibility tests.test_cli -v  # 12 modernization tests
 
 # Individual evaluation modules (each has a self-contained test mode)

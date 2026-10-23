@@ -9,15 +9,14 @@ import subprocess
 import sys
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from ledger.pipeline.evaluation_runs import connect
-from ledger.pipeline.spend_plan import canonical_hash
-from ledger.pipeline.reservation_recovery import validate_candidate, validate_report
 from ledger.pipeline.execution_context import validate_context
-
+from ledger.pipeline.reservation_recovery import validate_candidate, validate_report
+from ledger.pipeline.spend_plan import canonical_hash
 
 VERSION = "ledger-reservation-reconciliation-v1"
 CHILD_EXIT_CODES = {
@@ -131,7 +130,7 @@ def reconcile(args: argparse.Namespace) -> int:
     summary: dict[str, Any] = {
         "version": VERSION,
         "reservation_id": str(args.reservation),
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "status": "INCONCLUSIVE",
         "association_verified": False,
         "reasons": [],
@@ -141,61 +140,60 @@ def reconcile(args: argparse.Namespace) -> int:
         "provider_invoice_reconciled": False,
     }
     try:
-        with connect() as connection:
-            with connection.transaction():
-                connection.execute(
-                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-                )
-                row = connection.execute(
-                    """
+        with connect() as connection, connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+            )
+            row = connection.execute(
+                """
                     SELECT budget_id, state, plan, plan_sha256,
                            reserved_usd, candidate_run_id, exit_code,
                            rehearsal_report, rehearsal_report_sha256
                     FROM ledger_spend_reservations
                     WHERE reservation_id = %s
                     """,
-                    (args.reservation,),
-                ).fetchone()
-                if row is None:
-                    raise ValueError("Reservation does not exist.")
-                (
-                    budget_id,
-                    state,
-                    plan,
-                    plan_hash,
-                    reserved_usd,
-                    candidate,
-                    exit_code,
-                    rehearsal_path,
-                    rehearsal_hash,
-                ) = row
-                candidate_id = require_finished_candidate(state, candidate)
-                report = read_saved_report(rehearsal_path, rehearsal_hash)
-                validate_association(
-                    args.reservation,
-                    plan,
-                    plan_hash,
-                    candidate_id,
-                    exit_code,
-                    report,
-                )
-                candidate_row = connection.execute(
-                    """
+                (args.reservation,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Reservation does not exist.")
+            (
+                budget_id,
+                state,
+                plan,
+                plan_hash,
+                reserved_usd,
+                candidate,
+                exit_code,
+                rehearsal_path,
+                rehearsal_hash,
+            ) = row
+            candidate_id = require_finished_candidate(state, candidate)
+            report = read_saved_report(rehearsal_path, rehearsal_hash)
+            validate_association(
+                args.reservation,
+                plan,
+                plan_hash,
+                candidate_id,
+                exit_code,
+                report,
+            )
+            candidate_row = connection.execute(
+                """
                     SELECT config, reviewed_by
                     FROM ledger_eval_runs WHERE run_id = %s
                     """,
-                    (candidate_id,),
-                ).fetchone()
-                if candidate_row is None:
-                    raise ValueError("Candidate run does not exist.")
-                validate_context(
-                    candidate_row[0].get("execution_context")
-                    if isinstance(candidate_row[0], dict)
-                    else None,
-                    args.reservation,
-                    plan_hash,
-                )
-                validate_candidate(candidate_row[0], candidate_row[1], plan)
+                (candidate_id,),
+            ).fetchone()
+            if candidate_row is None:
+                raise ValueError("Candidate run does not exist.")
+            validate_context(
+                candidate_row[0].get("execution_context")
+                if isinstance(candidate_row[0], dict)
+                else None,
+                args.reservation,
+                plan_hash,
+            )
+            validate_candidate(candidate_row[0], candidate_row[1], plan)
 
         summary.update(
             {
@@ -257,11 +255,11 @@ def reconcile(args: argparse.Namespace) -> int:
         summary["reasons"] = [str(exc)]
     except Exception as exc:
         summary["reasons"] = [
-            f"Reconciliation could not complete ({type(exc).__name__}); "
-            "verify stored evidence, policy, database access, and local logs."
+            (f"Reconciliation could not complete ({type(exc).__name__}); "
+            "verify stored evidence, policy, database access, and local logs.")
         ]
 
-    summary["finished_at"] = datetime.now(timezone.utc).isoformat()
+    summary["finished_at"] = datetime.now(UTC).isoformat()
     report_path = directory / "report.json"
     report_path.write_text(
         json.dumps(summary, indent=2, allow_nan=False), encoding="utf-8"

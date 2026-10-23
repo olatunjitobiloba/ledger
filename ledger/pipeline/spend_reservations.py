@@ -10,7 +10,7 @@ import subprocess
 import sys
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -18,9 +18,18 @@ from typing import Any
 from psycopg.types.json import Jsonb
 
 from ledger.pipeline.evaluation_runs import connect
-from ledger.pipeline.spend_plan import build_payload, canonical_hash, money, validate_plan
-from ledger.pipeline.execution_context import PLAN_ENV, RESERVATION_ENV, require_candidate_context, validate_context
-
+from ledger.pipeline.execution_context import (
+    PLAN_ENV,
+    RESERVATION_ENV,
+    require_candidate_context,
+    validate_context,
+)
+from ledger.pipeline.spend_plan import (
+    build_payload,
+    canonical_hash,
+    money,
+    validate_plan,
+)
 
 SCHEMA = [
     """
@@ -71,7 +80,7 @@ def execution_args(plan: dict[str, Any]) -> argparse.Namespace:
 
 def checked_plan(plan: dict[str, Any]) -> Decimal:
     current = build_payload(execution_args(plan))
-    validate_plan(plan, current, datetime.now(timezone.utc))
+    validate_plan(plan, current, datetime.now(UTC))
     return money(current["cost_plan"]["estimated_total_usd"])
 
 
@@ -90,30 +99,29 @@ def admission(
 
 def initialize(args: argparse.Namespace) -> int:
     limit = money(args.limit_usd)
-    with connect() as connection:
-        with connection.transaction():
-            for statement in SCHEMA:
-                connection.execute(statement)
-            connection.execute(
-                """
+    with connect() as connection, connection.transaction():
+        for statement in SCHEMA:
+            connection.execute(statement)
+        connection.execute(
+            """
                 INSERT INTO ledger_spend_budgets (budget_id, limit_usd)
                 VALUES (%s, %s)
                 ON CONFLICT (budget_id) DO NOTHING
                 """,
-                (args.budget_id, limit),
-            )
-            saved = connection.execute(
-                """
+            (args.budget_id, limit),
+        )
+        saved = connection.execute(
+            """
                 SELECT limit_usd FROM ledger_spend_budgets
                 WHERE budget_id = %s
                 """,
-                (args.budget_id,),
-            ).fetchone()[0]
-            if saved != limit:
-                raise ValueError(
-                    "Budget already exists with a different limit. "
-                    "This command does not modify existing budgets."
-                )
+            (args.budget_id,),
+        ).fetchone()[0]
+        if saved != limit:
+            raise ValueError(
+                "Budget already exists with a different limit. "
+                "This command does not modify existing budgets."
+            )
     print(f"Budget initialized: {args.budget_id}")
     return 0
 
@@ -124,49 +132,48 @@ def reserve(args: argparse.Namespace) -> int:
     digest = canonical_hash(plan)
     reservation_id = uuid.uuid4()
 
-    with connect() as connection:
-        with connection.transaction():
-            budget = connection.execute(
-                """
+    with connect() as connection, connection.transaction():
+        budget = connection.execute(
+            """
                 SELECT limit_usd FROM ledger_spend_budgets
                 WHERE budget_id = %s FOR UPDATE
                 """,
-                (args.budget_id,),
-            ).fetchone()
-            if budget is None:
-                raise ValueError("Initialize this budget first.")
+            (args.budget_id,),
+        ).fetchone()
+        if budget is None:
+            raise ValueError("Initialize this budget first.")
 
-            duplicate = connection.execute(
-                """
+        duplicate = connection.execute(
+            """
                 SELECT reservation_id FROM ledger_spend_reservations
                 WHERE plan_sha256 = %s
                 """,
-                (digest,),
-            ).fetchone()
-            if duplicate is not None:
-                raise ValueError(
-                    f"Plan already reserved: {duplicate[0]}. "
-                    "Use that reservation; do not recreate its approval."
-                )
+            (digest,),
+        ).fetchone()
+        if duplicate is not None:
+            raise ValueError(
+                f"Plan already reserved: {duplicate[0]}. "
+                "Use that reservation; do not recreate its approval."
+            )
 
-            used = connection.execute(
-                """
+        used = connection.execute(
+            """
                 SELECT COALESCE(SUM(reserved_usd), 0)
                 FROM ledger_spend_reservations WHERE budget_id = %s
                 """,
-                (args.budget_id,),
-            ).fetchone()[0]
-            remaining = admission(budget[0], used, amount)
+            (args.budget_id,),
+        ).fetchone()[0]
+        remaining = admission(budget[0], used, amount)
 
-            connection.execute(
-                """
+        connection.execute(
+            """
                 INSERT INTO ledger_spend_reservations (
                     reservation_id, budget_id, plan_sha256,
                     plan, reserved_usd, state
                 ) VALUES (%s, %s, %s, %s, %s, 'RESERVED')
                 """,
-                (reservation_id, args.budget_id, digest, Jsonb(plan), amount),
-            )
+            (reservation_id, args.budget_id, digest, Jsonb(plan), amount),
+        )
 
     print(f"Reservation: {reservation_id}")
     print(f"Estimated USD reserved: {amount}")
@@ -258,9 +265,8 @@ def run(args: argparse.Namespace) -> int:
     plan_path = directory / "reserved-plan.json"
     plan_path.write_text(json.dumps(plan, indent=2), encoding="utf-8")
 
-    with connect() as connection:
-        with connection.transaction():
-            claim(connection, args.reservation)
+    with connect() as connection, connection.transaction():
+        claim(connection, args.reservation)
 
     code = 3
     state = "UNKNOWN"
@@ -326,10 +332,9 @@ def run(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
 
-    with connect() as connection:
-        with connection.transaction():
-            updated = connection.execute(
-                """
+    with connect() as connection, connection.transaction():
+        updated = connection.execute(
+            """
                 UPDATE ledger_spend_reservations
                 SET state = %s, finished_at = now(), exit_code = %s,
                     candidate_run_id = %s, rehearsal_report = %s,
@@ -337,17 +342,17 @@ def run(args: argparse.Namespace) -> int:
                 WHERE reservation_id = %s AND state = 'RUNNING'
                 RETURNING reservation_id
                 """,
-                (
-                    state,
-                    code,
-                    candidate,
-                    rehearsal_path,
-                    rehearsal_hash,
-                    args.reservation,
-                ),
-            ).fetchone()
-            if updated is None:
-                raise ValueError("Reservation finalization failed.")
+            (
+                state,
+                code,
+                candidate,
+                rehearsal_path,
+                rehearsal_hash,
+                args.reservation,
+            ),
+        ).fetchone()
+        if updated is None:
+            raise ValueError("Reservation finalization failed.")
 
     print(f"Reservation state: {state}")
     print(f"Candidate: {candidate}")
@@ -385,21 +390,21 @@ def status(args: argparse.Namespace) -> int:
 class ReservationTests(unittest.TestCase):
     def test_exact_limit(self) -> None:
         self.assertEqual(
-            admission(Decimal("1"), Decimal("0.8"), Decimal("0.2")),
-            Decimal("0"),
+            admission(Decimal(1), Decimal("0.8"), Decimal("0.2")),
+            Decimal(0),
         )
 
     def test_over_limit(self) -> None:
         with self.assertRaises(ValueError):
-            admission(Decimal("1"), Decimal("0.9"), Decimal("0.2"))
+            admission(Decimal(1), Decimal("0.9"), Decimal("0.2"))
 
     def test_negative_amount(self) -> None:
         with self.assertRaises(ValueError):
-            admission(Decimal("1"), Decimal("0"), Decimal("-1"))
+            admission(Decimal(1), Decimal(0), Decimal(-1))
 
     def test_nonfinite_amount(self) -> None:
         with self.assertRaises(ValueError):
-            admission(Decimal("1"), Decimal("0"), Decimal("NaN"))
+            admission(Decimal(1), Decimal(0), Decimal("NaN"))
 
     def test_plan_identity_ignores_json_key_order(self) -> None:
         self.assertEqual(

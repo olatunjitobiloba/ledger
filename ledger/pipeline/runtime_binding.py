@@ -18,14 +18,13 @@ import subprocess
 import sys
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ledger.pipeline.golden_set import load_dataset
 from ledger.pipeline.evaluation_runs import connect
+from ledger.pipeline.golden_set import load_dataset
 from ledger.pipeline.provenance import clean_commit, output_path, require_tracked
-
 
 BINDING_VERSION = "ledger-runtime-binding-v1"
 CONFIG_FILE = Path("runtime-config.json")
@@ -259,11 +258,11 @@ def check(args: argparse.Namespace) -> int:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            f"Check could not complete ({type(exc).__name__}). "
-            "Verify dependencies, repository, and database setup."
+            (f"Check could not complete ({type(exc).__name__}). "
+            "Verify dependencies, repository, and database setup.")
         ]
 
-    report["checked_at"] = datetime.now(timezone.utc).isoformat()
+    report["checked_at"] = datetime.now(UTC).isoformat()
     directory = Path("results/day12")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4()}.json"

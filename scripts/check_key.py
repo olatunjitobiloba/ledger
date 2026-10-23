@@ -1,7 +1,7 @@
 """Check whether a key is accepted, before running the judge.
 
-    python check_key.py            # checks whichever key is in .env
-    python check_key.py --groq     # force one provider
+    python scripts/check_key.py            # checks whichever key is in .env
+    python scripts/check_key.py --groq     # force one provider
 
 Prints the HTTP status and never prints the key. Exits 0 if the key works,
 1 if it does not. Costs one request, or zero if the key's shape is already wrong.
@@ -12,6 +12,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
 from judge import _key_provider_warning, _mask, load_dotenv
 

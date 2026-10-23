@@ -18,14 +18,13 @@ import subprocess
 import sys
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from ledger.pipeline.evaluation_runs import connect
-from ledger.pipeline.provenance import clean_commit
 from ledger.pipeline.execution_context import context_from_environment
-
+from ledger.pipeline.provenance import clean_commit
 
 VERSION = "ledger-container-binding-v1"
 EXIT_CODES = {"READY": 0, "BLOCK": 1, "REVIEW": 2, "INCONCLUSIVE": 3}
@@ -262,11 +261,11 @@ def check(args: argparse.Namespace) -> int:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            f"Check could not complete ({type(exc).__name__}). "
-            "Verify Docker, registry access, database, and repository."
+            (f"Check could not complete ({type(exc).__name__}). "
+            "Verify Docker, registry access, database, and repository.")
         ]
 
-    report["checked_at"] = datetime.now(timezone.utc).isoformat()
+    report["checked_at"] = datetime.now(UTC).isoformat()
     directory = Path("results/day13")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4()}.json"

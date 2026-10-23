@@ -71,10 +71,10 @@ Application
 
 | Claim | Verification |
 | --- | --- |
-| Async ingest returns 202, never blocks | `python -m unittest test_api -v` |
-| SDK redaction and privacy controls work | `python -m unittest test_api -v` (free-tier test) |
-| Judge parses, coerces, and discriminates | `python -m unittest test_judge -v` (33 tests) |
-| Strict-rubric Groq judge parses schema-constrained JSON | `python -m unittest test_judge_groq -v` (6 tests) |
+| Async ingest returns 202, never blocks | `python -m unittest tests.test_api -v` |
+| SDK redaction and privacy controls work | `python -m unittest tests.test_api -v` (free-tier test) |
+| Judge parses, coerces, and discriminates | `python -m unittest tests.test_judge -v` (33 tests) |
+| Strict-rubric Groq judge parses schema-constrained JSON | `python -m unittest tests.test_judge_groq -v` (6 tests) |
 | Cost attribution from provider tokens | `python -m ledger.pipeline.costs test` |
 | Regression gate blocks below threshold | `python -m ledger.pipeline.regression test` |
 | Injection monitoring flags suspicious text | `python -m ledger.pipeline.injection_scan test` |
@@ -114,7 +114,7 @@ Application
 python -m ledger doctor
 
 # 2. Run the full offline test suite
-python -m unittest test_judge test_judge_groq test_api -v
+python -m unittest tests.test_judge tests.test_judge_groq tests.test_api -v
 python -m unittest tests.test_compatibility tests.test_cli -v
 
 # 3. Run evaluation module tests

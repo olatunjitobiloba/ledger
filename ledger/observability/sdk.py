@@ -1,3 +1,3 @@
-from ledger_sdk import Ledger
+from ledger.sdk import Ledger
 
 __all__ = ["Ledger"]

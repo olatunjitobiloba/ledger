@@ -6,25 +6,26 @@ import argparse
 import json
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from ledger.pipeline.evaluation_runs import connect
 from ledger.pipeline.costs import PRICE_VERSION
+from ledger.pipeline.evaluation_runs import connect
 from ledger.pipeline.spend_plan import (
     POLICY_FILE,
-    VERSION as PLAN_VERSION,
     calculate,
     canonical_hash,
     hash_bytes,
     money,
 )
-
+from ledger.pipeline.spend_plan import (
+    VERSION as PLAN_VERSION,
+)
 
 REPORT_VERSION = "ledger-cost-reconciliation-v1"
-MILLION = Decimal("1000000")
+MILLION = Decimal(1000000)
 
 
 def application_cost(usage: object, rates: dict[str, Any]) -> Decimal | None:
@@ -154,7 +155,7 @@ def summarize_application(
     rates: dict[str, Any],
     planned: str,
 ) -> dict[str, Any]:
-    known = Decimal("0")
+    known = Decimal(0)
     unknown: list[str] = []
     records = []
 
@@ -200,45 +201,44 @@ def reconcile(args: argparse.Namespace) -> int:
         plan, payload, policy = load_plan(args.plan)
         report["plan_payload_sha256"] = plan["payload_sha256"]
 
-        with connect() as connection:
-            with connection.transaction():
-                connection.execute(
-                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-                )
-                row = connection.execute(
-                    """
+        with connect() as connection, connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+            )
+            row = connection.execute(
+                """
                     SELECT config, reviewed_by, dataset_snapshot
                     FROM ledger_eval_runs WHERE run_id = %s
                     """,
-                    (args.candidate,),
-                ).fetchone()
-                if row is None:
-                    raise ValueError("Candidate run does not exist.")
+                (args.candidate,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("Candidate run does not exist.")
 
-                outputs = connection.execute(
-                    """
+            outputs = connection.execute(
+                """
                     SELECT case_id, usage
                     FROM ledger_application_outputs
                     WHERE run_id = %s ORDER BY case_id
                     """,
-                    (args.candidate,),
-                ).fetchall()
+                (args.candidate,),
+            ).fetchall()
 
-                results = connection.execute(
-                    """
+            results = connection.execute(
+                """
                     SELECT case_id, trial, status
                     FROM ledger_eval_results WHERE run_id = %s
                     ORDER BY case_id, trial
                     """,
-                    (args.candidate,),
-                ).fetchall()
+                (args.candidate,),
+            ).fetchall()
 
-                validate_candidate(
-                    row[0], row[1], row[2], payload, outputs, results
-                )
+            validate_candidate(
+                row[0], row[1], row[2], payload, outputs, results
+            )
 
-                costs = connection.execute(
-                    """
+            costs = connection.execute(
+                """
                     SELECT r.case_id, r.trial, c.cost_status,
                            c.estimated_cost_usd
                     FROM ledger_eval_results r
@@ -250,8 +250,8 @@ def reconcile(args: argparse.Namespace) -> int:
                     WHERE r.run_id = %s
                     ORDER BY r.case_id, r.trial
                     """,
-                    (PRICE_VERSION, args.candidate),
-                ).fetchall()
+                (PRICE_VERSION, args.candidate),
+            ).fetchall()
 
         application = summarize_application(
             outputs,
@@ -259,7 +259,7 @@ def reconcile(args: argparse.Namespace) -> int:
             payload["cost_plan"]["application"]["estimated_usd"],
         )
 
-        judge_subtotal = Decimal("0")
+        judge_subtotal = Decimal(0)
         unknown_judge = []
         for case_id, trial, status, value in costs:
             if status != "estimated" or value is None:
@@ -311,19 +311,19 @@ def reconcile(args: argparse.Namespace) -> int:
         )
         report["status"] = "PARTIAL" if incomplete else "RECONCILED_RECORDS"
         report["reasons"] = [
-            "Reconciled saved records only; retry/failed-attempt charges "
-            "and provider billing remain outside this report."
+            ("Reconciled saved records only; retry/failed-attempt charges "
+            "and provider billing remain outside this report.")
         ]
 
     except ValueError as exc:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            f"Reconciliation could not complete ({type(exc).__name__}). "
-            "Verify the plan, exact policy, run evidence, and database."
+            (f"Reconciliation could not complete ({type(exc).__name__}). "
+            "Verify the plan, exact policy, run evidence, and database.")
         ]
 
-    report["checked_at"] = datetime.now(timezone.utc).isoformat()
+    report["checked_at"] = datetime.now(UTC).isoformat()
     directory = Path("results/day17")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4()}.json"
@@ -364,7 +364,7 @@ class ReconciliationTests(unittest.TestCase):
                 {"prompt_tokens": 0, "completion_tokens": 0},
                 self.rates(),
             ),
-            Decimal("0"),
+            Decimal(0),
         )
 
     def test_boolean_tokens_rejected(self) -> None:

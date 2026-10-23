@@ -10,7 +10,6 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
-
 VERSION = "ledger-execution-context-v1"
 RESERVATION_ENV = "LEDGER_SPEND_RESERVATION_ID"
 PLAN_ENV = "LEDGER_SPEND_PLAN_SHA256"
