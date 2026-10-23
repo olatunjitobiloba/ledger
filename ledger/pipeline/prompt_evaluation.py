@@ -25,8 +25,8 @@ from groq import Groq
 from psycopg.types.json import Jsonb
 
 import judge_groq as judge
-from ledger.pipeline.golden_set import load_dataset
 from ledger.pipeline.evaluation_runs import SCHEMA, build_config, connect, print_summary
+from ledger.pipeline.golden_set import load_dataset
 
 APP_SCHEMA = """
 CREATE TABLE IF NOT EXISTS ledger_application_outputs (

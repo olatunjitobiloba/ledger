@@ -14,7 +14,7 @@ import argparse
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -286,7 +286,7 @@ def run(reviewed_by: str, repeats: int) -> None:
 
     output = Path("results/day3")
     output.mkdir(parents=True, exist_ok=True)
-    filename = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ.json")
+    filename = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ.json")
     report_path = output / filename
     report_path.write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"

@@ -8,7 +8,7 @@ verification command that runs offline.
 | Claim | Source | Verification |
 | --- | --- | --- |
 | Async ingest returns 202 Accepted | [ledger_api/main.py](../../../ledger_api/main.py) | `python -m unittest test_api.TestApiContracts.test_ingest_returns_202_and_eventually_stores_cost_and_risk -v` |
-| SDK fires and forgets; ignores delivery failures | [ledger_sdk.py](../../../ledger_sdk.py) | `python -m unittest test_api.TestApiContracts.test_frozen_single_span_sdk_contract_is_accepted -v` |
+| SDK fires and forgets; ignores delivery failures | [ledger/sdk.py](../../../ledger/sdk.py) | `python -m unittest tests.test_api.TestApiContracts.test_frozen_single_span_sdk_contract_is_accepted -v` |
 | Project isolation via API keys | [ledger_api/services.py](../../../ledger_api/services.py) | `python -m unittest test_api.TestApiContracts.test_project_isolation -v` |
 | Free tier rejects extended retention | [ledger_api/main.py](../../../ledger_api/main.py) | `python -m unittest test_api.TestApiContracts.test_free_tier_rejects_extended_retention -v` |
 
@@ -48,11 +48,11 @@ verification command that runs offline.
 
 | Claim | Source | Verification |
 | --- | --- | --- |
-| Judge parses structured JSON payloads | [judge.py](../../../judge.py) | `python -m unittest test_judge.TestParseJudgePayload -v` |
-| Judge coerces score types correctly | [judge.py](../../../judge.py) | `python -m unittest test_judge.TestParseJudgePayload.test_score_is_coerced_to_float -v` |
-| Discrimination check validates judge quality | [judge.py](../../../judge.py) | `python -m unittest test_judge.TestHarness -v` |
-| Key diagnostics detect provider mismatch | [judge.py](../../../judge.py) | `python -m unittest test_judge.TestKeyDiagnostics -v` |
-| Dotenv loader is safe and correct | [judge.py](../../../judge.py) | `python -m unittest test_judge.TestLoadDotenv -v` |
+| Judge parses structured JSON payloads | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestParseJudgePayload -v` |
+| Judge coerces score types correctly | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestParseJudgePayload.test_score_is_coerced_to_float -v` |
+| Discrimination check validates judge quality | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestHarness -v` |
+| Key diagnostics detect provider mismatch | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestKeyDiagnostics -v` |
+| Dotenv loader is safe and correct | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestLoadDotenv -v` |
 
 ## Infrastructure
 

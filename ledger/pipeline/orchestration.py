@@ -18,14 +18,18 @@ import sys
 import time
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ledger.pipeline.provenance import clean_commit
-from ledger.pipeline.container_binding import container_command, generation_artifact, inspect_image, validate_binding
+from ledger.pipeline.container_binding import (
+    container_command,
+    generation_artifact,
+    inspect_image,
+    validate_binding,
+)
 from ledger.pipeline.execution_context import context_from_environment
-
+from ledger.pipeline.provenance import clean_commit
 
 VERSION = "ledger-rehearsal-v1"
 EXIT_CODES = {
@@ -150,7 +154,7 @@ def rehearsal(args: argparse.Namespace) -> int:
     report: dict[str, Any] = {
         "version": VERSION,
         "rehearsal_id": rehearsal_id,
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "baseline_run_id": str(args.baseline),
         "candidate_run_id": None,
         "decision": "INCONCLUSIVE",
@@ -284,11 +288,11 @@ def rehearsal(args: argparse.Namespace) -> int:
     except Exception as exc:
         report["decision"] = "INCONCLUSIVE"
         report["reasons"] = [
-            f"Rehearsal could not complete ({type(exc).__name__}). "
-            "Inspect local step logs and environment setup."
+            (f"Rehearsal could not complete ({type(exc).__name__}). "
+            "Inspect local step logs and environment setup.")
         ]
 
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
+    report["finished_at"] = datetime.now(UTC).isoformat()
     path = directory / "report.json"
     path.write_text(
         json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"

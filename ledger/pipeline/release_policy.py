@@ -16,15 +16,14 @@ import math
 import unittest
 import uuid
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ledger.pipeline.evaluation_runs import connect
 from ledger.pipeline.costs import PRICE_VERSION
-from ledger.pipeline.regression import compare, load_run
+from ledger.pipeline.evaluation_runs import connect
 from ledger.pipeline.injection_scan import RULESET_SHA256, SCANNER_VERSION
-
+from ledger.pipeline.regression import compare, load_run
 
 POLICY_VERSION = "ledger-release-policy-v1"
 
@@ -111,8 +110,8 @@ def assess(
     else:
         report["decision"] = "READY"
         report["reasons"] = [
-            "Configured checks passed on the tested cases; "
-            "this does not establish production safety."
+            ("Configured checks passed on the tested cases; "
+            "this does not establish production safety.")
         ]
 
     return report
@@ -308,43 +307,42 @@ def main() -> None:
         raise SystemExit(0 if result.wasSuccessful() else 1)
 
     try:
-        with connect() as connection:
-            with connection.transaction():
-                connection.execute(
-                    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-                )
-                baseline = load_run(connection, args.baseline)
-                candidate = load_run(connection, args.candidate)
-                relative = compare(baseline, candidate, args.allowed_drop)
+        with connect() as connection, connection.transaction():
+            connection.execute(
+                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+            )
+            baseline = load_run(connection, args.baseline)
+            candidate = load_run(connection, args.candidate)
+            relative = compare(baseline, candidate, args.allowed_drop)
 
-                quality_rows = connection.execute(
-                    """
+            quality_rows = connection.execute(
+                """
                     SELECT case_id, trial, status, eval_score, passed
                     FROM ledger_eval_results
                     WHERE run_id = %s
                     """,
-                    (args.candidate,),
-                ).fetchall()
-                results = [
-                    dict(
-                        zip(
-                            ("case_id", "trial", "status", "eval_score", "passed"),
-                            row,
-                        )
+                (args.candidate,),
+            ).fetchall()
+            results = [
+                dict(
+                    zip(
+                        ("case_id", "trial", "status", "eval_score", "passed"),
+                        row,
                     )
-                    for row in quality_rows
-                ]
-                security = load_security(connection, candidate)
-                costs = load_cost_coverage(connection, args.candidate)
-                report = assess(relative, results, security, args.quality_floor)
-                report["judge_cost_coverage"] = costs
+                )
+                for row in quality_rows
+            ]
+            security = load_security(connection, candidate)
+            costs = load_cost_coverage(connection, args.candidate)
+            report = assess(relative, results, security, args.quality_floor)
+            report["judge_cost_coverage"] = costs
     except Exception as exc:
         report = {
             "policy_version": POLICY_VERSION,
             "decision": "INCONCLUSIVE",
             "reasons": [
-                f"Check could not complete ({type(exc).__name__}). "
-                "Verify database setup, run IDs, and arguments."
+                (f"Check could not complete ({type(exc).__name__}). "
+                "Verify database setup, run IDs, and arguments.")
             ],
         }
 
@@ -352,7 +350,7 @@ def main() -> None:
         {
             "baseline_run_id": str(args.baseline),
             "candidate_run_id": str(args.candidate),
-            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "checked_at": datetime.now(UTC).isoformat(),
             "scanner_version": SCANNER_VERSION,
             "ruleset_sha256": RULESET_SHA256,
         }

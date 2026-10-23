@@ -14,10 +14,13 @@ from typing import Any
 from psycopg.types.json import Jsonb
 
 from ledger.pipeline.evaluation_runs import connect
-from ledger.pipeline.spend_plan import VERSION as PLAN_VERSION, canonical_hash
+from ledger.pipeline.execution_context import (
+    require_candidate_context,
+    validate_context,
+)
+from ledger.pipeline.spend_plan import VERSION as PLAN_VERSION
+from ledger.pipeline.spend_plan import canonical_hash
 from ledger.pipeline.spend_reservations import associate
-from ledger.pipeline.execution_context import require_candidate_context, validate_context
-
 
 RECOVERABLE = {"RUNNING", "UNKNOWN"}
 EXIT_CODES = {"READY": 0, "BLOCK": 1, "REVIEW": 2, "INCONCLUSIVE": 3}
@@ -139,9 +142,8 @@ def load_report(path: str) -> tuple[str, str, dict[str, Any]]:
 
 
 def initialize() -> int:
-    with connect() as connection:
-        with connection.transaction():
-            connection.execute(AUDIT_SCHEMA)
+    with connect() as connection, connection.transaction():
+        connection.execute(AUDIT_SCHEMA)
     print("Recovery audit table initialized.")
     return 0
 
@@ -155,82 +157,81 @@ def recover(args: argparse.Namespace) -> int:
     report_path, report_hash, report = load_report(args.report)
     event_id = uuid.uuid4()
 
-    with connect() as connection:
-        with connection.transaction():
-            row = connection.execute(
-                """
+    with connect() as connection, connection.transaction():
+        row = connection.execute(
+            """
                 SELECT state, plan, plan_sha256
                 FROM ledger_spend_reservations
                 WHERE reservation_id = %s
                 FOR UPDATE
                 """,
-                (args.reservation,),
-            ).fetchone()
-            if row is None:
-                raise ValueError("Reservation does not exist.")
+            (args.reservation,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Reservation does not exist.")
 
-            previous_state, plan, plan_hash = row
-            require_recoverable(previous_state)
-            if canonical_hash(plan) != plan_hash:
-                raise ValueError("Stored plan and reservation hash disagree.")
+        previous_state, plan, plan_hash = row
+        require_recoverable(previous_state)
+        if canonical_hash(plan) != plan_hash:
+            raise ValueError("Stored plan and reservation hash disagree.")
 
-            validate_context(
-                report.get("execution_context"),
-                args.reservation,
-                plan_hash,
-            )
-            candidate, code = validate_report(report, plan)
-            if candidate is not None:
-                candidate_row = connection.execute(
-                    """
+        validate_context(
+            report.get("execution_context"),
+            args.reservation,
+            plan_hash,
+        )
+        candidate, code = validate_report(report, plan)
+        if candidate is not None:
+            candidate_row = connection.execute(
+                """
                     SELECT config, reviewed_by
                     FROM ledger_eval_runs WHERE run_id = %s
                     """,
-                    (candidate,),
-                ).fetchone()
-                if candidate_row is None:
-                    raise ValueError(
-                        "Candidate run does not exist. Leave the reservation unresolved."
-                    )
-                validate_candidate(candidate_row[0], candidate_row[1], plan)
-                require_candidate_context(
-                    connection,
-                    candidate,
-                    args.reservation,
-                    plan_hash,
+                (candidate,),
+            ).fetchone()
+            if candidate_row is None:
+                raise ValueError(
+                    "Candidate run does not exist. Leave the reservation unresolved."
                 )
+            validate_candidate(candidate_row[0], candidate_row[1], plan)
+            require_candidate_context(
+                connection,
+                candidate,
+                args.reservation,
+                plan_hash,
+            )
 
-            evidence = {
-                "rehearsal_id": report["rehearsal_id"],
-                "report_path": report_path,
-                "report_sha256": report_hash,
-                "execution_context": report["execution_context"],
-                "candidate_run_id": str(candidate) if candidate else None,
-                "decision": report["decision"],
-                "exit_code_basis": "inferred from saved report decision",
-                "process_exit_independently_verified": False,
-                "model_calls_made_by_recovery": False,
-                "budget_capacity_released": False,
-            }
+        evidence = {
+            "rehearsal_id": report["rehearsal_id"],
+            "report_path": report_path,
+            "report_sha256": report_hash,
+            "execution_context": report["execution_context"],
+            "candidate_run_id": str(candidate) if candidate else None,
+            "decision": report["decision"],
+            "exit_code_basis": "inferred from saved report decision",
+            "process_exit_independently_verified": False,
+            "model_calls_made_by_recovery": False,
+            "budget_capacity_released": False,
+        }
 
-            connection.execute(
-                """
+        connection.execute(
+            """
                 INSERT INTO ledger_spend_recovery_events (
                     event_id, reservation_id, operator_label,
                     reason, previous_state, evidence
                 ) VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (
-                    event_id,
-                    args.reservation,
-                    operator,
-                    reason,
-                    previous_state,
-                    Jsonb(evidence),
-                ),
-            )
-            connection.execute(
-                """
+            (
+                event_id,
+                args.reservation,
+                operator,
+                reason,
+                previous_state,
+                Jsonb(evidence),
+            ),
+        )
+        connection.execute(
+            """
                 UPDATE ledger_spend_reservations
                 SET state = 'FINISHED', finished_at = now(),
                     exit_code = %s, candidate_run_id = %s,
@@ -238,14 +239,14 @@ def recover(args: argparse.Namespace) -> int:
                     rehearsal_report_sha256 = %s
                 WHERE reservation_id = %s
                 """,
-                (
-                    code,
-                    candidate,
-                    report_path,
-                    report_hash,
-                    args.reservation,
-                ),
-            )
+            (
+                code,
+                candidate,
+                report_path,
+                report_hash,
+                args.reservation,
+            ),
+        )
 
     print(f"Recovered reservation: {args.reservation}")
     print(f"Audit event: {event_id}")

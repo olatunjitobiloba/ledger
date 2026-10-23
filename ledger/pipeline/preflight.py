@@ -19,13 +19,12 @@ import sys
 import tempfile
 import unittest
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ledger.pipeline.provenance import clean_commit
 from ledger.pipeline.container_binding import container_command, inspect_image
-
+from ledger.pipeline.provenance import clean_commit
 
 VERSION = "ledger-preflight-v1"
 TABLE_PRIVILEGES = {
@@ -103,8 +102,8 @@ def validate_baseline(
 
 
 def inside_preflight(args: argparse.Namespace) -> None:
-    from ledger.pipeline.golden_set import load_dataset
     from ledger.pipeline.evaluation_runs import connect
+    from ledger.pipeline.golden_set import load_dataset
     from ledger.pipeline.runtime_binding import build_binding
 
     runtime = build_binding()
@@ -119,51 +118,50 @@ def inside_preflight(args: argparse.Namespace) -> None:
         temporary.write(b"ledger-preflight")
         temporary.flush()
 
-    with connect() as connection:
-        with connection.transaction():
-            connection.execute(
-                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-            )
+    with connect() as connection, connection.transaction():
+        connection.execute(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+        )
 
-            for table, privileges in TABLE_PRIVILEGES.items():
-                exists = connection.execute(
-                    "SELECT to_regclass(%s)", (table,)
+        for table, privileges in TABLE_PRIVILEGES.items():
+            exists = connection.execute(
+                "SELECT to_regclass(%s)", (table,)
+            ).fetchone()[0]
+            if exists is None:
+                raise ValueError(
+                    f"Missing table: {table}. Initialize the evaluation "
+                    "database before running the rehearsal."
+                )
+
+            for privilege in privileges:
+                permitted = connection.execute(
+                    "SELECT has_table_privilege(current_user, %s, %s)",
+                    (table, privilege),
                 ).fetchone()[0]
-                if exists is None:
-                    raise ValueError(
-                        f"Missing table: {table}. Initialize the evaluation "
-                        "database before running the rehearsal."
-                    )
+                if not permitted:
+                    raise ValueError(f"Missing {privilege} privilege on {table}.")
 
-                for privilege in privileges:
-                    permitted = connection.execute(
-                        "SELECT has_table_privilege(current_user, %s, %s)",
-                        (table, privilege),
-                    ).fetchone()[0]
-                    if not permitted:
-                        raise ValueError(f"Missing {privilege} privilege on {table}.")
-
-            row = connection.execute(
-                """
+        row = connection.execute(
+            """
                 SELECT dataset_snapshot
                 FROM ledger_eval_runs WHERE run_id = %s
                 """,
-                (args.baseline,),
-            ).fetchone()
-            if row is None:
-                raise ValueError("Baseline run does not exist.")
+            (args.baseline,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Baseline run does not exist.")
 
-            rows = connection.execute(
-                """
+        rows = connection.execute(
+            """
                 SELECT case_id, trial, status, eval_score, passed
                 FROM ledger_eval_results
                 WHERE run_id = %s
                 ORDER BY case_id, trial
                 """,
-                (args.baseline,),
-            ).fetchall()
+            (args.baseline,),
+        ).fetchall()
 
-            coverage = validate_baseline(row[0], selected, rows, args.repeats)
+        coverage = validate_baseline(row[0], selected, rows, args.repeats)
 
     print(
         json.dumps(
@@ -184,7 +182,7 @@ def execute(args: argparse.Namespace) -> int:
     directory.mkdir(parents=True)
     report: dict[str, Any] = {
         "version": VERSION,
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "baseline_run_id": str(args.baseline),
         "status": "FAILED",
         "rehearsal_started": False,
@@ -267,12 +265,12 @@ def execute(args: argparse.Namespace) -> int:
     except Exception as exc:
         report["status"] = "FAILED"
         report["reasons"] = [
-            f"Preflight/rehearsal could not complete ({type(exc).__name__}). "
-            "Check Docker, registry access, dependencies, and database setup."
+            (f"Preflight/rehearsal could not complete ({type(exc).__name__}). "
+            "Check Docker, registry access, dependencies, and database setup.")
         ]
         exit_code = 3
 
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
+    report["finished_at"] = datetime.now(UTC).isoformat()
     path = directory / "report.json"
     path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 

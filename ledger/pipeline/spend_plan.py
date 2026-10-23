@@ -10,20 +10,19 @@ import subprocess
 import sys
 import unittest
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from ledger.pipeline.container_binding import validate_reference
 from ledger.pipeline.golden_set import load_dataset
 from ledger.pipeline.provenance import clean_commit, require_tracked
-from ledger.pipeline.container_binding import validate_reference
-
 
 VERSION = "ledger-spend-plan-v1"
 POLICY_FILE = Path("evaluation-budget.json")
 PLAN_LIFETIME = timedelta(hours=1)
-MILLION = Decimal("1000000")
+MILLION = Decimal(1000000)
 
 
 def money(value: object) -> Decimal:
@@ -218,7 +217,7 @@ def create_plan(args: argparse.Namespace) -> int:
     payload = build_payload(args)
     plan = {
         "version": VERSION,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "payload": payload,
         "payload_sha256": canonical_hash(payload),
     }
@@ -255,7 +254,7 @@ def execute_plan(args: argparse.Namespace) -> int:
         raise ValueError("Plan has an unsupported repeat count.")
 
     current = build_payload(reconstructed)
-    validate_plan(plan, current, datetime.now(timezone.utc))
+    validate_plan(plan, current, datetime.now(UTC))
 
     print("Spend plan accepted. Starting preflight.", flush=True)
     completed = subprocess.run(
@@ -329,7 +328,7 @@ class SpendTests(unittest.TestCase):
         self.assertFalse(calculate(policy, 6, 1)["within_planned_budget"])
 
     def test_expired_plan(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payload = {"cost_plan": {"within_planned_budget": True}}
         plan = {
             "version": VERSION,
@@ -341,7 +340,7 @@ class SpendTests(unittest.TestCase):
             validate_plan(plan, payload, now)
 
     def test_changed_payload(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payload = {"cost_plan": {"within_planned_budget": True}}
         plan = {
             "version": VERSION,

@@ -51,7 +51,7 @@ dependencies. It never exposes secret values — only present/missing."
 Run the core product tests:
 
 ```bash
-python -m unittest test_api test_judge test_judge_groq -v
+python -m unittest tests.test_api tests.test_judge tests.test_judge_groq -v
 ```
 
 Highlight:

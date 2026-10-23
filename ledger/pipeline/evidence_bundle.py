@@ -21,11 +21,13 @@ from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 from ledger.pipeline.evaluation_runs import connect
-from ledger.pipeline.spend_plan import canonical_hash
-from ledger.pipeline.reservation_recovery import validate_candidate
 from ledger.pipeline.execution_context import validate_context
-from ledger.pipeline.reservation_reconciliation import require_finished_candidate, validate_association
-
+from ledger.pipeline.reservation_reconciliation import (
+    require_finished_candidate,
+    validate_association,
+)
+from ledger.pipeline.reservation_recovery import validate_candidate
+from ledger.pipeline.spend_plan import canonical_hash
 
 VERSION = "ledger-evidence-bundle-v1"
 MEMBERS = {"manifest.json", "plan.json", "rehearsal.json"}
@@ -238,71 +240,70 @@ def publish_no_overwrite(path: Path, content: bytes) -> str:
 
 
 def export_reservation(args: argparse.Namespace) -> int:
-    with connect() as connection:
-        with connection.transaction():
-            connection.execute(
-                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-            )
-            row = connection.execute(
-                """
+    with connect() as connection, connection.transaction():
+        connection.execute(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+        )
+        row = connection.execute(
+            """
                 SELECT state, plan, plan_sha256, candidate_run_id, exit_code,
                        rehearsal_report, rehearsal_report_sha256
                 FROM ledger_spend_reservations
                 WHERE reservation_id = %s
                 """,
-                (args.reservation,),
-            ).fetchone()
-            if row is None:
-                raise ValueError("Reservation does not exist.")
-            (
-                state,
-                plan,
-                plan_hash,
-                candidate,
-                exit_code,
-                rehearsal_path,
-                rehearsal_hash,
-            ) = row
-            candidate_id = require_finished_candidate(state, candidate)
-            if canonical_hash(plan) != plan_hash:
-                raise ValueError("Stored plan and reservation hash disagree.")
+            (args.reservation,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Reservation does not exist.")
+        (
+            state,
+            plan,
+            plan_hash,
+            candidate,
+            exit_code,
+            rehearsal_path,
+            rehearsal_hash,
+        ) = row
+        candidate_id = require_finished_candidate(state, candidate)
+        if canonical_hash(plan) != plan_hash:
+            raise ValueError("Stored plan and reservation hash disagree.")
 
-            report_manifest_path = str(rehearsal_path)
-            report_path = validate_report_path(rehearsal_path, must_exist=True)
-            report_bytes = report_path.read_bytes()
-            if sha256(report_bytes) != rehearsal_hash:
-                raise ValueError("Saved rehearsal report hash differs from the ledger.")
-            report = json.loads(report_bytes)
-            if not isinstance(report, dict):
-                raise ValueError("Saved rehearsal report is not an object.")
-            validate_association(
-                args.reservation,
-                plan,
-                plan_hash,
-                candidate_id,
-                exit_code,
-                report,
-            )
+        report_manifest_path = str(rehearsal_path)
+        report_path = validate_report_path(rehearsal_path, must_exist=True)
+        report_bytes = report_path.read_bytes()
+        if sha256(report_bytes) != rehearsal_hash:
+            raise ValueError("Saved rehearsal report hash differs from the ledger.")
+        report = json.loads(report_bytes)
+        if not isinstance(report, dict):
+            raise ValueError("Saved rehearsal report is not an object.")
+        validate_association(
+            args.reservation,
+            plan,
+            plan_hash,
+            candidate_id,
+            exit_code,
+            report,
+        )
 
-            candidate_row = connection.execute(
-                """
+        candidate_row = connection.execute(
+            """
                 SELECT config, reviewed_by
                 FROM ledger_eval_runs
                 WHERE run_id = %s
                 """,
-                (candidate_id,),
-            ).fetchone()
-            if candidate_row is None:
-                raise ValueError("Candidate run does not exist.")
-            config, reviewed_by = candidate_row
-            validate_context(
-                config.get("execution_context")
-                if isinstance(config, dict)
-                else None,
-                args.reservation,
-                plan_hash,
-            )
-            validate_candidate(config, reviewed_by, plan)
+            (candidate_id,),
+        ).fetchone()
+        if candidate_row is None:
+            raise ValueError("Candidate run does not exist.")
+        config, reviewed_by = candidate_row
+        validate_context(
+            config.get("execution_context")
+            if isinstance(config, dict)
+            else None,
+            args.reservation,
+            plan_hash,
+        )
+        validate_candidate(config, reviewed_by, plan)
 
     plan_bytes = canonical_plan_bytes(plan)
     manifest = {
@@ -359,68 +360,67 @@ def restore_bundle(args: argparse.Namespace) -> int:
     if report.get("rehearsal_id") != str(parent_id):
         raise ValueError("Rehearsal report ID differs from manifest path.")
 
-    with connect() as connection:
-        with connection.transaction():
-            connection.execute(
-                "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-            )
-            row = connection.execute(
-                """
+    with connect() as connection, connection.transaction():
+        connection.execute(
+            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+        )
+        row = connection.execute(
+            """
                 SELECT state, plan, plan_sha256, candidate_run_id, exit_code,
                        rehearsal_report, rehearsal_report_sha256
                 FROM ledger_spend_reservations
                 WHERE reservation_id = %s
                 """,
-                (reservation_id,),
-            ).fetchone()
-            if row is None:
-                raise ValueError("Reservation does not exist.")
-            (
-                state,
-                receiving_plan,
-                receiving_plan_hash,
-                receiving_candidate,
-                exit_code,
-                receiving_report_path,
-                receiving_report_hash,
-            ) = row
-            finished_candidate = require_finished_candidate(
-                state, receiving_candidate
-            )
-            if finished_candidate != bundled_candidate:
-                raise ValueError("Receiving candidate differs from bundle.")
-            if receiving_plan_hash != plan_hash or receiving_plan != plan:
-                raise ValueError("Receiving plan differs from bundle.")
-            if receiving_report_path != manifest_report:
-                raise ValueError("Receiving report path differs from bundle.")
-            if receiving_report_hash != rehearsal_hash:
-                raise ValueError("Receiving report hash differs from bundle.")
-            validate_association(
-                reservation_id,
-                plan,
-                plan_hash,
-                finished_candidate,
-                exit_code,
-                report,
-            )
+            (reservation_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Reservation does not exist.")
+        (
+            state,
+            receiving_plan,
+            receiving_plan_hash,
+            receiving_candidate,
+            exit_code,
+            receiving_report_path,
+            receiving_report_hash,
+        ) = row
+        finished_candidate = require_finished_candidate(
+            state, receiving_candidate
+        )
+        if finished_candidate != bundled_candidate:
+            raise ValueError("Receiving candidate differs from bundle.")
+        if receiving_plan_hash != plan_hash or receiving_plan != plan:
+            raise ValueError("Receiving plan differs from bundle.")
+        if receiving_report_path != manifest_report:
+            raise ValueError("Receiving report path differs from bundle.")
+        if receiving_report_hash != rehearsal_hash:
+            raise ValueError("Receiving report hash differs from bundle.")
+        validate_association(
+            reservation_id,
+            plan,
+            plan_hash,
+            finished_candidate,
+            exit_code,
+            report,
+        )
 
-            candidate_row = connection.execute(
-                """
+        candidate_row = connection.execute(
+            """
                 SELECT config, reviewed_by
                 FROM ledger_eval_runs
                 WHERE run_id = %s
                 """,
-                (finished_candidate,),
-            ).fetchone()
-            if candidate_row is None:
-                raise ValueError("Candidate run does not exist.")
-            config, reviewed_by = candidate_row
-            if not isinstance(config, dict):
-                raise ValueError("Candidate configuration is invalid.")
-            validate_context(
-                config.get("execution_context"), reservation_id, plan_hash
-            )
-            validate_candidate(config, reviewed_by, plan)
+            (finished_candidate,),
+        ).fetchone()
+        if candidate_row is None:
+            raise ValueError("Candidate run does not exist.")
+        config, reviewed_by = candidate_row
+        if not isinstance(config, dict):
+            raise ValueError("Candidate configuration is invalid.")
+        validate_context(
+            config.get("execution_context"), reservation_id, plan_hash
+        )
+        validate_candidate(config, reviewed_by, plan)
 
     trusted_path = validate_report_path(receiving_report_path, must_exist=False)
     status = publish_no_overwrite(trusted_path, rehearsal_bytes)
@@ -665,7 +665,7 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             original = Path.cwd()
             os.chdir(directory)
             try:
-                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                bundle, manifest, plan, rehearsal, _reservation_id, _candidate_id = (
                     self.write_restore_archive(Path(directory))
                 )
                 receiving_row = (
@@ -689,7 +689,7 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             original = Path.cwd()
             os.chdir(directory)
             try:
-                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                bundle, manifest, plan, rehearsal, _reservation_id, candidate_id = (
                     self.write_restore_archive(Path(directory))
                 )
                 receiving_row = (
@@ -713,7 +713,7 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             original = Path.cwd()
             os.chdir(directory)
             try:
-                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                bundle, manifest, plan, rehearsal, _reservation_id, candidate_id = (
                     self.write_restore_archive(Path(directory))
                 )
                 trusted = Path(manifest["rehearsal_report"])
@@ -739,7 +739,7 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             original = Path.cwd()
             os.chdir(directory)
             try:
-                bundle, manifest, plan, rehearsal, reservation_id, candidate_id = (
+                bundle, manifest, plan, rehearsal, _reservation_id, candidate_id = (
                     self.write_restore_archive(Path(directory))
                 )
                 trusted = Path(manifest["rehearsal_report"])

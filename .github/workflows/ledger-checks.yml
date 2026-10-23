@@ -53,7 +53,7 @@ jobs:
             ledger/__main__.py ledger/cli.py
 
       - name: Test product API and judge
-        run: python -m unittest test_judge test_judge_groq test_api -v
+        run: python -m unittest tests.test_judge tests.test_judge_groq tests.test_api -v
 
       - name: Test compatibility and stable CLI
         run: python -m unittest tests.test_compatibility tests.test_cli -v
