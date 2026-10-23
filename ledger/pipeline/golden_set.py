@@ -239,9 +239,7 @@ def run(reviewed_by: str, repeats: int) -> None:
 
     variation: dict[str, dict[str, Any]] = {}
     for case in dataset["cases"]:
-        scores = [
-            r["eval_score"] for r in completed if r["case_id"] == case["case_id"]
-        ]
+        scores = [r["eval_score"] for r in completed if r["case_id"] == case["case_id"]]
         variation[case["case_id"]] = {
             "completed_trials": len(scores),
             "min_score": min(scores) if scores else None,

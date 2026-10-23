@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 from ledger import cli
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -59,7 +58,10 @@ class LedgerCliTests(unittest.TestCase):
             workspace = Path(temporary_directory)
             shutil.copytree(REPOSITORY_ROOT / "ledger", workspace / "ledger")
             for filename in ("judge.py", "judge_groq.py"):
-                shutil.copy2(REPOSITORY_ROOT / "ledger" / "judges" / filename, workspace / filename)
+                shutil.copy2(
+                    REPOSITORY_ROOT / "ledger" / "judges" / filename,
+                    workspace / filename,
+                )
             (workspace / ".env").write_text(
                 "sk-SECRET-DO-NOT-PRINT\n", encoding="utf-8"
             )
@@ -80,7 +82,14 @@ class LedgerCliTests(unittest.TestCase):
 
         with patch("ledger.cli.export_reservation", return_value=7) as export:
             result = cli.main(
-                ["evidence", "export", "--reservation", str(reservation), "--output", str(output)]
+                [
+                    "evidence",
+                    "export",
+                    "--reservation",
+                    str(reservation),
+                    "--output",
+                    str(output),
+                ]
             )
 
         self.assertEqual(result, 7)
@@ -110,7 +119,9 @@ class LedgerCliTests(unittest.TestCase):
         connection = unittest.mock.MagicMock()
         connection.__enter__.return_value = connection
 
-        with patch("ledger.pipeline.evaluation_runs.connect", return_value=connection) as connect:
+        with patch(
+            "ledger.pipeline.evaluation_runs.connect", return_value=connection
+        ) as connect:
             result = cli.run_doctor(check_database=True)
 
         self.assertIn(result, (0, 1))

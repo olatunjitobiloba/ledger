@@ -52,11 +52,7 @@ def validate_baseline(
     expected = {case["case_id"]: case for case in source_cases}
     actual = {case["case_id"]: case for case in cases}
 
-    if (
-        not expected
-        or len(actual) != len(cases)
-        or set(actual) != set(expected)
-    ):
+    if not expected or len(actual) != len(cases) or set(actual) != set(expected):
         raise ValueError(
             "Baseline cases differ from the current starter application set."
         )
@@ -67,9 +63,7 @@ def validate_baseline(
                 raise ValueError(f"Baseline case contract changed: {case_id}/{field}")
 
     wanted = {
-        (case_id, trial)
-        for case_id in expected
-        for trial in range(1, repeats + 1)
+        (case_id, trial) for case_id in expected for trial in range(1, repeats + 1)
     }
     observed = set()
 
@@ -108,9 +102,7 @@ def inside_preflight(args: argparse.Namespace) -> None:
 
     runtime = build_binding()
     source, _ = load_dataset()
-    selected = [
-        case for case in source["cases"] if case["case_id"].endswith("-good")
-    ]
+    selected = [case for case in source["cases"] if case["case_id"].endswith("-good")]
 
     results = Path("results")
     results.mkdir(exist_ok=True)
@@ -119,14 +111,12 @@ def inside_preflight(args: argparse.Namespace) -> None:
         temporary.flush()
 
     with connect() as connection, connection.transaction():
-        connection.execute(
-            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-        )
+        connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
 
         for table, privileges in TABLE_PRIVILEGES.items():
-            exists = connection.execute(
-                "SELECT to_regclass(%s)", (table,)
-            ).fetchone()[0]
+            exists = connection.execute("SELECT to_regclass(%s)", (table,)).fetchone()[
+                0
+            ]
             if exists is None:
                 raise ValueError(
                     f"Missing table: {table}. Initialize the evaluation "
@@ -203,8 +193,15 @@ def execute(args: argparse.Namespace) -> int:
         completed = subprocess.run(
             container_command(
                 binding,
-                ["-m", "ledger.pipeline.preflight", "inside", "--baseline", str(args.baseline),
-                 "--repeats", str(args.repeats)],
+                [
+                    "-m",
+                    "ledger.pipeline.preflight",
+                    "inside",
+                    "--baseline",
+                    str(args.baseline),
+                    "--repeats",
+                    str(args.repeats),
+                ],
             ),
             text=True,
             capture_output=True,
@@ -265,8 +262,10 @@ def execute(args: argparse.Namespace) -> int:
     except Exception as exc:
         report["status"] = "FAILED"
         report["reasons"] = [
-            (f"Preflight/rehearsal could not complete ({type(exc).__name__}). "
-            "Check Docker, registry access, dependencies, and database setup.")
+            (
+                f"Preflight/rehearsal could not complete ({type(exc).__name__}). "
+                "Check Docker, registry access, dependencies, and database setup."
+            )
         ]
         exit_code = 3
 
@@ -282,7 +281,9 @@ def execute(args: argparse.Namespace) -> int:
 
 
 class PreflightTests(unittest.TestCase):
-    def fixtures(self) -> tuple[dict[str, Any], list[dict[str, Any]], list[tuple[Any, ...]]]:
+    def fixtures(
+        self,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], list[tuple[Any, ...]]]:
         case = {
             "case_id": "one-good",
             "question": "Question",
@@ -373,7 +374,9 @@ def main() -> int:
             print(str(exc), file=sys.stderr)
             return 3
         except Exception as exc:
-            print(f"Container preflight failed ({type(exc).__name__}).", file=sys.stderr)
+            print(
+                f"Container preflight failed ({type(exc).__name__}).", file=sys.stderr
+            )
             return 3
 
     if args.command == "run":

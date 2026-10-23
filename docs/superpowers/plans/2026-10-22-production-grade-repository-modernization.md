@@ -114,16 +114,36 @@ expose the existing key symbols:
 
 ```python
 def test_legacy_day_modules_import(self):
-    for name in ("day3", "day4", "day5", "day6", "day7", "day8",
-                 "day9", "day11", "day12", "day13", "day14", "day15",
-                 "day16", "day17", "day18", "day19", "day20", "day21", "day22"):
+    for name in (
+        "day3",
+        "day4",
+        "day5",
+        "day6",
+        "day7",
+        "day8",
+        "day9",
+        "day11",
+        "day12",
+        "day13",
+        "day14",
+        "day15",
+        "day16",
+        "day17",
+        "day18",
+        "day19",
+        "day20",
+        "day21",
+        "day22",
+    ):
         importlib.import_module(name)
+
 
 def test_descriptive_facades_delegate(self):
     from ledger.evaluation.evidence import export_reservation, restore_bundle
     from ledger.evaluation.reconciliation import reconcile
     from ledger.observability.api import app
     from ledger.observability.sdk import Ledger
+
     self.assertIsNotNone(export_reservation)
     self.assertIsNotNone(restore_bundle)
     self.assertIsNotNone(reconcile)
@@ -204,10 +224,12 @@ def test_help_lists_product_commands(self):
     for command in ("doctor", "serve", "worker", "evidence"):
         self.assertIn(command, result.stdout)
 
+
 def test_doctor_help_is_read_only(self):
     result = run_cli("doctor", "--help")
     self.assertEqual(result.returncode, 0)
     self.assertIn("read-only", result.stdout.lower())
+
 
 def test_evidence_parser_requires_arguments(self):
     result = run_cli("evidence", "export")

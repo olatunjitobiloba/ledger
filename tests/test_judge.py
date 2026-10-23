@@ -42,7 +42,9 @@ class TestParseJudgePayload(unittest.TestCase):
         self.assertEqual(result["flags"], ["incomplete"])
 
     def test_score_is_coerced_to_float(self):
-        result = _parse_judge_payload('{"score": "0.5", "reasoning": "ok", "flags": []}')
+        result = _parse_judge_payload(
+            '{"score": "0.5", "reasoning": "ok", "flags": []}'
+        )
         self.assertIsInstance(result["score"], float)
         self.assertEqual(result["score"], 0.5)
 

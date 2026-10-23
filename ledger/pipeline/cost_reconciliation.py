@@ -233,9 +233,7 @@ def reconcile(args: argparse.Namespace) -> int:
                 (args.candidate,),
             ).fetchall()
 
-            validate_candidate(
-                row[0], row[1], row[2], payload, outputs, results
-            )
+            validate_candidate(row[0], row[1], row[2], payload, outputs, results)
 
             costs = connection.execute(
                 """
@@ -290,11 +288,7 @@ def reconcile(args: argparse.Namespace) -> int:
                     ),
                 },
                 "combined_known_estimated_subtotal_usd": str(
-                    Decimal(
-                        application[
-                            "recorded_usage_estimated_subtotal_usd"
-                        ]
-                    )
+                    Decimal(application["recorded_usage_estimated_subtotal_usd"])
                     + judge_subtotal
                 ),
                 "combined_subtotal_uses_mixed_pricing_bases": True,
@@ -305,31 +299,31 @@ def reconcile(args: argparse.Namespace) -> int:
         )
 
         incomplete = (
-            application["unknown_usage_cases"]
-            or unknown_judge
-            or failed_judgments
+            application["unknown_usage_cases"] or unknown_judge or failed_judgments
         )
         report["status"] = "PARTIAL" if incomplete else "RECONCILED_RECORDS"
         report["reasons"] = [
-            ("Reconciled saved records only; retry/failed-attempt charges "
-            "and provider billing remain outside this report.")
+            (
+                "Reconciled saved records only; retry/failed-attempt charges "
+                "and provider billing remain outside this report."
+            )
         ]
 
     except ValueError as exc:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            (f"Reconciliation could not complete ({type(exc).__name__}). "
-            "Verify the plan, exact policy, run evidence, and database.")
+            (
+                f"Reconciliation could not complete ({type(exc).__name__}). "
+                "Verify the plan, exact policy, run evidence, and database."
+            )
         ]
 
     report["checked_at"] = datetime.now(UTC).isoformat()
     directory = Path("results/day17")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4()}.json"
-    path.write_text(
-        json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"
-    )
+    path.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
     print(f"Status: {report['status']}")
     for reason in report["reasons"]:
         print(f"- {reason}")
@@ -376,9 +370,7 @@ class ReconciliationTests(unittest.TestCase):
         )
 
     def test_partial_coverage_has_no_variance(self) -> None:
-        result = summarize_application(
-            [("one", {})], self.rates(), "0.01"
-        )
+        result = summarize_application([("one", {})], self.rates(), "0.01")
         self.assertIsNone(result["recorded_usage_variance_usd"])
         self.assertEqual(result["unknown_usage_cases"], ["one"])
 
@@ -405,9 +397,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "test":
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(
-            ReconciliationTests
-        )
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(ReconciliationTests)
         result = unittest.TextTestRunner(verbosity=2).run(suite)
         return 0 if result.wasSuccessful() else 1
 

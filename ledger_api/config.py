@@ -30,9 +30,13 @@ DB_SSLMODE = os.getenv("LEDGER_DB_SSLMODE", "")
 DB_SSLROOTCERT = os.getenv("LEDGER_DB_SSLROOTCERT", "")
 # SQLite is disposable local development. Managed Postgres must be created by
 # the reviewed migration, never implicitly at API startup.
-AUTO_CREATE_SCHEMA = os.getenv(
-    "LEDGER_AUTO_CREATE_SCHEMA", "true" if DATABASE_URL.startswith("sqlite") else "false"
-).lower() == "true"
+AUTO_CREATE_SCHEMA = (
+    os.getenv(
+        "LEDGER_AUTO_CREATE_SCHEMA",
+        "true" if DATABASE_URL.startswith("sqlite") else "false",
+    ).lower()
+    == "true"
+)
 
 # USD per token. This intentionally lives in configuration rather than code so
 # providers can update prices without a deployment.

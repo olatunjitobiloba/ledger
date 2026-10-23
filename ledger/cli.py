@@ -9,8 +9,8 @@ import io
 import os
 import sys
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 REQUIRED_FILES = (
     Path("runtime-config.json"),
@@ -49,9 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     evidence = commands.add_parser(
         "evidence", help="Export or restore verified evidence bundles."
     )
-    evidence_commands = evidence.add_subparsers(
-        dest="evidence_command", required=True
-    )
+    evidence_commands = evidence.add_subparsers(dest="evidence_command", required=True)
     export = evidence_commands.add_parser("export", help="Export a reservation bundle.")
     export.add_argument("--reservation", required=True, type=uuid.UUID)
     export.add_argument("--output", required=True, type=Path)
@@ -138,7 +136,9 @@ def run_doctor(*, check_database: bool) -> int:
     )
 
     for required_file in REQUIRED_FILES:
-        successful &= _report_check(required_file.is_file(), f"required file: {required_file}")
+        successful &= _report_check(
+            required_file.is_file(), f"required file: {required_file}"
+        )
 
     for module_name in REQUIRED_MODULES:
         try:
@@ -149,7 +149,11 @@ def run_doctor(*, check_database: bool) -> int:
             _report_check(True, f"required module: {module_name}")
 
     for variable in SECRET_VARIABLES:
-        status = "present" if os.getenv(variable) or variable in locally_configured_secrets else "missing"
+        status = (
+            "present"
+            if os.getenv(variable) or variable in locally_configured_secrets
+            else "missing"
+        )
         print(f"[INFO] secret {variable}: {status}")
 
     if check_database:
@@ -168,7 +172,9 @@ def run_doctor(*, check_database: bool) -> int:
     return 0 if successful else 1
 
 
-def _delegate(delegate: Callable[[argparse.Namespace], int | None], args: argparse.Namespace) -> int:
+def _delegate(
+    delegate: Callable[[argparse.Namespace], int | None], args: argparse.Namespace
+) -> int:
     """Preserve explicit delegate return codes while normalizing None to success."""
     result = delegate(args)
     return 0 if result is None else result

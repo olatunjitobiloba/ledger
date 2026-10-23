@@ -185,7 +185,11 @@ def _provider_config() -> tuple[str, str, str | None, str]:
 
 def effective_model() -> str:
     """Model id to call: explicit override, else the provider's default."""
-    return _judge_model_override or os.environ.get(JUDGE_MODEL_ENV) or _provider_config()[3]
+    return (
+        _judge_model_override
+        or os.environ.get(JUDGE_MODEL_ENV)
+        or _provider_config()[3]
+    )
 
 
 def _get_client() -> Any:
@@ -296,9 +300,7 @@ def judge_output(prompt: str, response: str) -> dict[str, Any]:
             {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": JUDGE_USER_TEMPLATE.format(
-                    prompt=prompt, response=response
-                ),
+                "content": JUDGE_USER_TEMPLATE.format(prompt=prompt, response=response),
             },
         ],
         response_format={"type": "json_object"},
@@ -410,16 +412,22 @@ def check_discrimination(results: list[dict[str, Any]]) -> bool:
 
     mean_high = sum(highs) / len(highs)
     mean_low = sum(lows) / len(lows)
-    print(f"mean high={mean_high:.2f}  mean low={mean_low:.2f}  gap={mean_high - mean_low:.2f}")
+    print(
+        f"mean high={mean_high:.2f}  mean low={mean_low:.2f}  gap={mean_high - mean_low:.2f}"
+    )
 
     if mean_low >= 0.5:
-        print("FAIL: the known-bad answer was not scored low. Rewrite the criteria before Day 3.")
+        print(
+            "FAIL: the known-bad answer was not scored low. Rewrite the criteria before Day 3."
+        )
         return False
     if mean_high <= mean_low:
         print("FAIL: no separation between good and bad.")
         return False
 
-    flagged = [f for r in scored if r["case"]["expect"] == "low" for f in r["outcome"]["flags"]]
+    flagged = [
+        f for r in scored if r["case"]["expect"] == "low" for f in r["outcome"]["flags"]
+    ]
     print(f"flags on bad answer(s): {flagged or 'none'}")
     print("PASS: judge discriminates.")
     return True
@@ -430,7 +438,9 @@ def check_consistency(judge_fn: Any, cases: list[dict[str, Any]], repeat: int) -
     print(f"\n--- consistency check ({repeat} passes) ---")
     stable = True
     for index, case in enumerate(cases, start=1):
-        seen = [judge_fn(case["prompt"], case["response"])["score"] for _ in range(repeat)]
+        seen = [
+            judge_fn(case["prompt"], case["response"])["score"] for _ in range(repeat)
+        ]
         drift = max(seen) - min(seen) if None not in seen else None
         verdict = "stable" if drift == 0 else f"drift={drift:.2f}"
         if drift != 0:
@@ -441,7 +451,9 @@ def check_consistency(judge_fn: Any, cases: list[dict[str, Any]], repeat: int) -
 
 def main(argv: list[str] | None = None) -> int:
     global _judge_model_override
-    parser = argparse.ArgumentParser(description="Judge a set of prompt/response pairs.")
+    parser = argparse.ArgumentParser(
+        description="Judge a set of prompt/response pairs."
+    )
     parser.add_argument(
         "--mock",
         action="store_true",

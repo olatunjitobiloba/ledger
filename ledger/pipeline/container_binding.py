@@ -31,18 +31,14 @@ EXIT_CODES = {"READY": 0, "BLOCK": 1, "REVIEW": 2, "INCONCLUSIVE": 3}
 
 
 def validate_reference(reference: str) -> None:
-    if not re.fullmatch(
-        r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}", reference
-    ):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[0-9a-f]{64}", reference):
         raise ValueError("Provide a registry image pinned by SHA-256 digest.")
 
 
 def inspect_image(reference: str) -> dict[str, Any]:
     validate_reference(reference)
     subprocess.run(["docker", "pull", reference], check=True)
-    raw = subprocess.check_output(
-        ["docker", "image", "inspect", reference], text=True
-    )
+    raw = subprocess.check_output(["docker", "image", "inspect", reference], text=True)
     details = json.loads(raw)
     if len(details) != 1:
         raise ValueError("Expected exactly one resolved image.")
@@ -243,10 +239,7 @@ def check(args: argparse.Namespace) -> int:
         path = check_report(completed.stdout)
         underlying = json.loads(path.read_text(encoding="utf-8"))
         decision = underlying.get("decision")
-        if (
-            decision not in EXIT_CODES
-            or EXIT_CODES[decision] != completed.returncode
-        ):
+        if decision not in EXIT_CODES or EXIT_CODES[decision] != completed.returncode:
             raise ValueError("Underlying decision and exit status disagree.")
 
         report.update(underlying)
@@ -261,17 +254,17 @@ def check(args: argparse.Namespace) -> int:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            (f"Check could not complete ({type(exc).__name__}). "
-            "Verify Docker, registry access, database, and repository.")
+            (
+                f"Check could not complete ({type(exc).__name__}). "
+                "Verify Docker, registry access, database, and repository."
+            )
         ]
 
     report["checked_at"] = datetime.now(UTC).isoformat()
     directory = Path("results/day13")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4()}.json"
-    path.write_text(
-        json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"
-    )
+    path.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
     print(f"Decision: {report['decision']}")
     print(f"Report: {path}")
     return EXIT_CODES[report["decision"]]

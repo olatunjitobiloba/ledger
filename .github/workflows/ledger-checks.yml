@@ -47,7 +47,7 @@ jobs:
       - name: Check Python syntax
         run: |
           python -m py_compile \
-            judge.py judge_groq.py ledger/pipeline/golden_set.py ledger/pipeline/evaluation_runs.py ledger/pipeline/costs.py \
+            ledger/judges/judge.py ledger/judges/judge_groq.py ledger/pipeline/golden_set.py ledger/pipeline/evaluation_runs.py ledger/pipeline/costs.py \
             ledger/pipeline/regression.py ledger/pipeline/prompt_evaluation.py ledger/pipeline/injection_scan.py ledger/pipeline/release_policy.py ledger/pipeline/provenance.py ledger/pipeline/runtime_binding.py \
             ledger/pipeline/container_binding.py ledger/pipeline/orchestration.py ledger/pipeline/preflight.py ledger/pipeline/spend_plan.py ledger/pipeline/cost_reconciliation.py ledger/pipeline/spend_reservations.py ledger/pipeline/reservation_recovery.py ledger/pipeline/execution_context.py ledger/pipeline/reservation_reconciliation.py ledger/pipeline/evidence_bundle.py \
             ledger/__main__.py ledger/cli.py

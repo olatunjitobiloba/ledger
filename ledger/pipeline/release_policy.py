@@ -59,9 +59,13 @@ def assess(
 
     for result in candidate_results:
         score = result.get("eval_score")
-        if result.get("status") != "completed" or not isinstance(
-            score, (int, float)
-        ) or isinstance(score, bool) or not math.isfinite(score) or not 0 <= score <= 1:
+        if (
+            result.get("status") != "completed"
+            or not isinstance(score, (int, float))
+            or isinstance(score, bool)
+            or not math.isfinite(score)
+            or not 0 <= score <= 1
+        ):
             report["coverage_failures"].append(
                 f"Invalid evaluation: {result['case_id']}/{result['trial']}"
             )
@@ -78,9 +82,13 @@ def assess(
     for item in security:
         label = f"{item['case_id']}/{item['field_name']}"
         risk = item.get("risk_index")
-        if item.get("scan_status") != "scanned" or not isinstance(
-            risk, (int, float)
-        ) or isinstance(risk, bool) or not math.isfinite(risk) or not 0 <= risk <= 1:
+        if (
+            item.get("scan_status") != "scanned"
+            or not isinstance(risk, (int, float))
+            or isinstance(risk, bool)
+            or not math.isfinite(risk)
+            or not 0 <= risk <= 1
+        ):
             report["coverage_failures"].append(
                 f"Missing, unscanned, or invalid security finding: {label}"
             )
@@ -110,8 +118,10 @@ def assess(
     else:
         report["decision"] = "READY"
         report["reasons"] = [
-            ("Configured checks passed on the tested cases; "
-            "this does not establish production safety.")
+            (
+                "Configured checks passed on the tested cases; "
+                "this does not establish production safety."
+            )
         ]
 
     return report
@@ -212,9 +222,7 @@ def load_cost_coverage(connection: Any, run_id: uuid.UUID) -> dict[str, Any]:
         "attributed_records": row[1],
         "estimated_records": row[2],
         "unknown_or_missing_records": row[3],
-        "known_estimated_subtotal_usd": (
-            str(row[4]) if row[4] is not None else None
-        ),
+        "known_estimated_subtotal_usd": (str(row[4]) if row[4] is not None else None),
         "affects_release_decision": False,
     }
 
@@ -250,16 +258,12 @@ class ReleaseTests(unittest.TestCase):
     def test_absolute_quality_blocks_equal_but_poor_runs(self) -> None:
         relative, results, security = self.fixtures()
         results[0].update(eval_score=0.5, passed=False)
-        self.assertEqual(
-            assess(relative, results, security, 0.75)["decision"], "BLOCK"
-        )
+        self.assertEqual(assess(relative, results, security, 0.75)["decision"], "BLOCK")
 
     def test_relative_regression_blocks(self) -> None:
         relative, results, security = self.fixtures()
         relative["decision"] = "BLOCK"
-        self.assertEqual(
-            assess(relative, results, security, 0.75)["decision"], "BLOCK"
-        )
+        self.assertEqual(assess(relative, results, security, 0.75)["decision"], "BLOCK")
 
     def test_security_match_requests_review(self) -> None:
         relative, results, security = self.fixtures()
@@ -285,9 +289,7 @@ class ReleaseTests(unittest.TestCase):
     def test_judge_correctness_failure_still_blocks(self) -> None:
         relative, results, security = self.fixtures()
         results[0]["passed"] = False
-        self.assertEqual(
-            assess(relative, results, security, 0.75)["decision"], "BLOCK"
-        )
+        self.assertEqual(assess(relative, results, security, 0.75)["decision"], "BLOCK")
 
 
 def main() -> None:
@@ -341,8 +343,10 @@ def main() -> None:
             "policy_version": POLICY_VERSION,
             "decision": "INCONCLUSIVE",
             "reasons": [
-                (f"Check could not complete ({type(exc).__name__}). "
-                "Verify database setup, run IDs, and arguments.")
+                (
+                    f"Check could not complete ({type(exc).__name__}). "
+                    "Verify database setup, run IDs, and arguments."
+                )
             ],
         }
 
@@ -365,9 +369,7 @@ def main() -> None:
         print(f"- {reason}")
     print(f"Report: {path}")
     raise SystemExit(
-        {"READY": 0, "BLOCK": 1, "REVIEW": 2, "INCONCLUSIVE": 3}[
-            report["decision"]
-        ]
+        {"READY": 0, "BLOCK": 1, "REVIEW": 2, "INCONCLUSIVE": 3}[report["decision"]]
     )
 
 

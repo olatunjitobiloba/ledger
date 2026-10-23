@@ -23,9 +23,10 @@ def _normalize_reservation(reservation_id: object) -> str:
 
 
 def _normalize_plan(plan_sha256: object) -> str:
-    if not isinstance(plan_sha256, str) or re.fullmatch(
-        r"[0-9a-f]{64}", plan_sha256
-    ) is None:
+    if (
+        not isinstance(plan_sha256, str)
+        or re.fullmatch(r"[0-9a-f]{64}", plan_sha256) is None
+    ):
         raise ValueError("Invalid plan hash.")
     return plan_sha256
 

@@ -65,9 +65,7 @@ def generate(args: argparse.Namespace) -> None:
         raise SystemExit("Provide a reviewer and application version.")
 
     source, source_hash = load_dataset()
-    selected = [
-        case for case in source["cases"] if case["case_id"].endswith("-good")
-    ]
+    selected = [case for case in source["cases"] if case["case_id"].endswith("-good")]
     if not selected:
         raise SystemExit("No starter '-good' cases found.")
 
@@ -195,9 +193,7 @@ def evaluate(args: argparse.Namespace) -> None:
             "execution_context": manifest.get("execution_context"),
             "application_version": manifest["app_version"],
             "application_model": manifest["requested_app_model"],
-            "application_reasoning_effort": manifest.get(
-                "app_reasoning_effort", "low"
-            ),
+            "application_reasoning_effort": manifest.get("app_reasoning_effort", "low"),
             "application_prompt_sha256": manifest["prompt_sha256"],
             "generation_artifact_sha256": sha(raw),
             "expected_pass_semantics": "desired_quality_not_human_label",

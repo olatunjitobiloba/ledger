@@ -156,14 +156,20 @@ curl -X POST http://127.0.0.1:8000/v1/ingest \
 from ledger.sdk import Ledger
 
 client = Ledger("http://localhost:8000", api_key="<project-key>")
-await client.ingest([{
-    "spans": [Ledger.span(
-        name="generate_response",
-        model="gpt-4o-mini",
-        prompt_tokens=150,
-        completion_tokens=80,
-    )]
-}])
+await client.ingest(
+    [
+        {
+            "spans": [
+                Ledger.span(
+                    name="generate_response",
+                    model="gpt-4o-mini",
+                    prompt_tokens=150,
+                    completion_tokens=80,
+                )
+            ]
+        }
+    ]
+)
 # Returns immediately — delivery is non-blocking.
 ```
 
