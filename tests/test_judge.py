@@ -14,7 +14,7 @@ import os
 import tempfile
 import unittest
 
-from judge import (
+from ledger.judges import (
     TEST_CASES,
     _key_provider_warning,
     _mask,

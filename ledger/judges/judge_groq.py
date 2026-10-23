@@ -23,7 +23,7 @@ from typing import Any, Literal
 from groq import Groq
 from pydantic import BaseModel, ConfigDict, Field
 
-from judge import load_dotenv
+from ledger.judges import load_dotenv
 
 load_dotenv(str(Path(__file__).with_name(".env")))
 

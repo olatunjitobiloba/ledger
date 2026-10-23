@@ -25,7 +25,7 @@ import psycopg
 from groq import Groq
 from psycopg.types.json import Jsonb
 
-import judge_groq as judge
+from ledger.judges import judge_groq as judge
 from ledger.pipeline.golden_set import load_dataset
 
 SCHEMA = """

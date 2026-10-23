@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from judge import judge_output
+from ledger.judges import judge_output
 
 from .config import BLOB_DIR, MODEL_PRICING
 from .models import Alert, ApiKey, EvalRun, Job, Project, Span, Trace, utcnow
