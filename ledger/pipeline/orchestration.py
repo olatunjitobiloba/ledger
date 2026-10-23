@@ -72,9 +72,7 @@ def validate_decision(report: object, returncode: int) -> str:
     return decision
 
 
-def judge_command(
-    binding: dict[str, Any], artifact: str, repeats: int
-) -> list[str]:
+def judge_command(binding: dict[str, Any], artifact: str, repeats: int) -> list[str]:
     command = container_command(
         binding,
         [
@@ -124,9 +122,7 @@ def run_step(
                 text=True,
             )
         record["exit_code"] = completed.returncode
-        record["status"] = (
-            "completed" if completed.returncode == 0 else "nonzero_exit"
-        )
+        record["status"] = "completed" if completed.returncode == 0 else "nonzero_exit"
         return completed.returncode
     except Exception:
         record["status"] = "execution_error"
@@ -227,7 +223,13 @@ def rehearsal(args: argparse.Namespace) -> int:
             "security_scan",
             container_command(
                 binding,
-                ["-m", "ledger.pipeline.injection_scan", "scan-run", "--run-id", str(candidate_id)],
+                [
+                    "-m",
+                    "ledger.pipeline.injection_scan",
+                    "scan-run",
+                    "--run-id",
+                    str(candidate_id),
+                ],
             ),
         )
         require_success(code, "Security scan")
@@ -288,15 +290,15 @@ def rehearsal(args: argparse.Namespace) -> int:
     except Exception as exc:
         report["decision"] = "INCONCLUSIVE"
         report["reasons"] = [
-            (f"Rehearsal could not complete ({type(exc).__name__}). "
-            "Inspect local step logs and environment setup.")
+            (
+                f"Rehearsal could not complete ({type(exc).__name__}). "
+                "Inspect local step logs and environment setup."
+            )
         ]
 
     report["finished_at"] = datetime.now(UTC).isoformat()
     path = directory / "report.json"
-    path.write_text(
-        json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"
-    )
+    path.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
     print(f"\nDecision: {report['decision']}")
     for reason in report["reasons"]:
         print(f"- {reason}")

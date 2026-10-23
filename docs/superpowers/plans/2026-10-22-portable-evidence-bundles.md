@@ -114,28 +114,39 @@ def test_canonical_report_path_is_accepted(self):
     path = Path("results/day14") / str(self.rehearsal_id) / "report.json"
     self.assertEqual(validate_report_path(path, must_exist=False), path.resolve())
 
+
 def test_report_path_traversal_is_rejected(self):
     with self.assertRaises(ValueError):
-        validate_report_path(Path("results/day14") / ".." / "secret" / "report.json",
-                             must_exist=False)
+        validate_report_path(
+            Path("results/day14") / ".." / "secret" / "report.json", must_exist=False
+        )
+
 
 def test_absolute_report_path_is_rejected(self):
     with self.assertRaises(ValueError):
-        validate_report_path(Path.cwd() / "results/day14" / str(self.rehearsal_id)
-                             / "report.json", must_exist=False)
+        validate_report_path(
+            Path.cwd() / "results/day14" / str(self.rehearsal_id) / "report.json",
+            must_exist=False,
+        )
+
 
 def test_report_hash_mismatch_is_rejected(self):
     with self.assertRaises(ValueError):
         verify_member_hash(b"actual", "0" * 64)
 
+
 def test_matching_manifest_hashes_are_accepted(self):
-    self.assertEqual(verify_member_hash(b"actual", sha256(b"actual")), sha256(b"actual"))
+    self.assertEqual(
+        verify_member_hash(b"actual", sha256(b"actual")), sha256(b"actual")
+    )
+
 
 def test_identical_existing_output_is_reused(self):
     with TemporaryDirectory() as directory:
         target = Path(directory) / "bundle.zip"
         target.write_bytes(b"same")
         self.assertEqual(publish_no_overwrite(target, b"same"), "ALREADY_PRESENT")
+
 
 def test_different_existing_output_is_not_replaced(self):
     with TemporaryDirectory() as directory:
@@ -144,6 +155,7 @@ def test_different_existing_output_is_not_replaced(self):
         with self.assertRaises(ValueError):
             publish_no_overwrite(target, b"different")
         self.assertEqual(target.read_bytes(), b"original")
+
 
 def test_unexpected_archive_member_is_rejected(self):
     archive = make_test_archive({"unexpected.txt": b"bad"})
@@ -175,6 +187,7 @@ Implement:
 ```python
 def sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
+
 
 def verify_member_hash(raw: bytes, expected: object) -> str:
     actual = sha256(raw)

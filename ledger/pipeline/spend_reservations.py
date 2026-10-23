@@ -84,9 +84,7 @@ def checked_plan(plan: dict[str, Any]) -> Decimal:
     return money(current["cost_plan"]["estimated_total_usd"])
 
 
-def admission(
-    limit: Decimal, already_reserved: Decimal, proposed: Decimal
-) -> Decimal:
+def admission(limit: Decimal, already_reserved: Decimal, proposed: Decimal) -> Decimal:
     if any(
         not value.is_finite() or value < 0
         for value in (limit, already_reserved, proposed)
@@ -200,9 +198,10 @@ def find_rehearsal_report(stdout: str) -> Path:
         line.removeprefix("Report: ").strip()
         for line in stdout.splitlines()
         if line.startswith("Report: ")
-        and line.removeprefix("Report: ").strip().replace("\\", "/").startswith(
-            "results/day14/"
-        )
+        and line.removeprefix("Report: ")
+        .strip()
+        .replace("\\", "/")
+        .startswith("results/day14/")
     ]
     if len(paths) != 1:
         raise ValueError("Could not identify one orchestration report.")

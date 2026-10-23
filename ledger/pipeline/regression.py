@@ -135,9 +135,7 @@ def compare(
                 "Use a shared evaluation contract."
             )
 
-        baseline_scores, baseline_models = validate_results(
-            baseline, baseline_contract
-        )
+        baseline_scores, baseline_models = validate_results(baseline, baseline_contract)
         candidate_scores, candidate_models = validate_results(
             candidate, candidate_contract
         )
@@ -173,9 +171,7 @@ def compare(
                     "baseline_mean": round(old_mean, 6),
                     "candidate_mean": round(new_mean, 6),
                     "absolute_drop": round(drop, 6),
-                    "baseline_score_range": round(
-                        max(old_scores) - min(old_scores), 6
-                    ),
+                    "baseline_score_range": round(max(old_scores) - min(old_scores), 6),
                     "candidate_score_range": round(
                         max(new_scores) - min(new_scores), 6
                     ),
@@ -197,9 +193,7 @@ def compare(
     return report
 
 
-def load_run(
-    connection: psycopg.Connection[Any], run_id: uuid.UUID
-) -> dict[str, Any]:
+def load_run(connection: psycopg.Connection[Any], run_id: uuid.UUID) -> dict[str, Any]:
     row = connection.execute(
         """
         SELECT config, dataset_snapshot

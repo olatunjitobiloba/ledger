@@ -3,7 +3,6 @@ import subprocess
 import sys
 import unittest
 
-
 PIPELINE_MODULES = (
     "ledger.pipeline.golden_set",
     "ledger.pipeline.evaluation_runs",

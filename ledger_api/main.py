@@ -20,15 +20,19 @@ from .services import authenticate, make_api_key, process_one_job, purge_expired
 
 def db_session():
     db = SessionLocal()
-    try: yield db
-    finally: db.close()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 async def worker() -> None:
     while True:
         db = SessionLocal()
-        try: process_one_job(db)
-        finally: db.close()
+        try:
+            process_one_job(db)
+        finally:
+            db.close()
         await asyncio.sleep(POLL_SECONDS)
 
 
@@ -52,19 +56,41 @@ class ProjectIn(BaseModel):
     retention_days: int = Field(default=7, ge=1, le=3650)
 
 
-class ApiKeyIn(BaseModel): name: str = Field(default="default", max_length=120)
+class ApiKeyIn(BaseModel):
+    name: str = Field(default="default", max_length=120)
+
 
 class SpanIn(BaseModel):
-    span_id: str; parent_span_id: str | None = None; type: str = "llm_call"; name: str | None = None; model: str | None = None
-    started_at: dt.datetime | None = None; ended_at: dt.datetime | None = None
-    tokens_in: int = 0; tokens_out: int = 0; cost_actual: float | None = None; latency_ms: float | None = None
-    prompt: str | None = None; response: str | None = None; usage: dict[str, Any] | None = None; detect_injection: bool = False
+    span_id: str
+    parent_span_id: str | None = None
+    type: str = "llm_call"
+    name: str | None = None
+    model: str | None = None
+    started_at: dt.datetime | None = None
+    ended_at: dt.datetime | None = None
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_actual: float | None = None
+    latency_ms: float | None = None
+    prompt: str | None = None
+    response: str | None = None
+    usage: dict[str, Any] | None = None
+    detect_injection: bool = False
+
 
 class TraceIn(BaseModel):
-    trace_id: str; config_id: str | None = None; prompt_hash: str | None = None; model: str | None = None
-    rag_index_version: str | None = None; status: str = "ok"; spans: list[SpanIn]
+    trace_id: str
+    config_id: str | None = None
+    prompt_hash: str | None = None
+    model: str | None = None
+    rag_index_version: str | None = None
+    status: str = "ok"
+    spans: list[SpanIn]
 
-class IngestIn(BaseModel): traces: list[TraceIn] = Field(min_length=1, max_length=500)
+
+class IngestIn(BaseModel):
+    traces: list[TraceIn] = Field(min_length=1, max_length=500)
+
 
 # Frozen SDK contract: one span per SDK call. The batch shape above remains
 # supported for efficient exporters and the PRD endpoint contract.
@@ -85,6 +111,7 @@ class SdkSpanIn(BaseModel):
     metadata: dict[str, Any] = {}
     detect_injection: bool = False
 
+
 class SdkIngestIn(BaseModel):
     trace_id: str | None = None
     user_id: str | None = None
@@ -92,93 +119,243 @@ class SdkIngestIn(BaseModel):
     status: str = "pending"
     metadata: dict[str, Any] = {}
     span: SdkSpanIn
-class EvalCase(BaseModel): prompt: str; response: str
+
+
+class EvalCase(BaseModel):
+    prompt: str
+    response: str
+
+
 class EvalIn(BaseModel):
-    dataset_version: str; config_id: str; baseline_score: float = Field(ge=0, le=100)
-    variance: float = Field(ge=0, le=100); cases: list[EvalCase] = Field(min_length=1, max_length=500)
+    dataset_version: str
+    config_id: str
+    baseline_score: float = Field(ge=0, le=100)
+    variance: float = Field(ge=0, le=100)
+    cases: list[EvalCase] = Field(min_length=1, max_length=500)
 
 
-def project_auth(x_api_key: str | None = Header(default=None), db: Session = Depends(db_session)) -> Project:
+def project_auth(
+    x_api_key: str | None = Header(default=None), db: Session = Depends(db_session)
+) -> Project:
     project = authenticate(db, x_api_key)
-    if not project: raise HTTPException(status_code=401, detail="valid X-API-Key required")
+    if not project:
+        raise HTTPException(status_code=401, detail="valid X-API-Key required")
     return project
 
 
 @app.get("/health")
-def health(): return {"status": "ok"}
+def health():
+    return {"status": "ok"}
 
 
 @app.post("/v1/projects", status_code=status.HTTP_201_CREATED)
-def create_project(body: ProjectIn, x_admin_token: str | None = Header(default=None), db: Session = Depends(db_session)):
-    if ADMIN_TOKEN and x_admin_token != ADMIN_TOKEN: raise HTTPException(401, "admin token required")
-    if body.tier == "free" and body.retention_days > 7: raise HTTPException(422, "free tier is limited to 7-day retention")
+def create_project(
+    body: ProjectIn,
+    x_admin_token: str | None = Header(default=None),
+    db: Session = Depends(db_session),
+):
+    if ADMIN_TOKEN and x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(401, "admin token required")
+    if body.tier == "free" and body.retention_days > 7:
+        raise HTTPException(422, "free tier is limited to 7-day retention")
     for pattern in body.redact_patterns:
-        try: re.compile(pattern)
-        except re.error as exc: raise HTTPException(422, f"invalid redact pattern: {exc}")
-    project = Project(**body.model_dump()); db.add(project); db.flush()
-    secret = make_api_key(db, project.id); db.commit()
-    return {"project_id": project.id, "api_key": secret, "retention_days": project.retention_days}
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise HTTPException(422, f"invalid redact pattern: {exc}")
+    project = Project(**body.model_dump())
+    db.add(project)
+    db.flush()
+    secret = make_api_key(db, project.id)
+    db.commit()
+    return {
+        "project_id": project.id,
+        "api_key": secret,
+        "retention_days": project.retention_days,
+    }
 
 
 @app.post("/v1/api-keys", status_code=status.HTTP_201_CREATED)
-def create_api_key(body: ApiKeyIn, project: Project = Depends(project_auth), db: Session = Depends(db_session)):
-    secret = make_api_key(db, project.id, body.name); db.commit()
+def create_api_key(
+    body: ApiKeyIn,
+    project: Project = Depends(project_auth),
+    db: Session = Depends(db_session),
+):
+    secret = make_api_key(db, project.id, body.name)
+    db.commit()
     return {"api_key": secret, "project_id": project.id}
 
 
 @app.post("/v1/ingest", status_code=status.HTTP_202_ACCEPTED)
-def ingest(body: IngestIn | SdkIngestIn, project: Project = Depends(project_auth), db: Session = Depends(db_session)):
+def ingest(
+    body: IngestIn | SdkIngestIn,
+    project: Project = Depends(project_auth),
+    db: Session = Depends(db_session),
+):
     if isinstance(body, SdkIngestIn):
         span = body.span
-        body = IngestIn(traces=[TraceIn(
-            trace_id=body.trace_id or str(uuid.uuid4()), status=body.status,
-            spans=[SpanIn(
-                span_id=span.span_id or str(uuid.uuid4()), parent_span_id=span.parent_span_id,
-                type=span.span_type, name=span.name, started_at=span.started_at, ended_at=span.ended_at,
-                model=span.model, tokens_in=span.prompt_tokens,
-                tokens_out=span.completion_tokens, cost_actual=span.cost_actual,
-                prompt=span.prompt_text if span.capture_prompt else None,
-                response=span.response_text if span.capture_prompt else None,
-                detect_injection=span.detect_injection,
-            )]
-        )])
-    job = Job(kind="ingest", payload={"project_id": project.id, "traces": [t.model_dump(mode="json") for t in body.traces]})
-    db.add(job); db.commit()
+        body = IngestIn(
+            traces=[
+                TraceIn(
+                    trace_id=body.trace_id or str(uuid.uuid4()),
+                    status=body.status,
+                    spans=[
+                        SpanIn(
+                            span_id=span.span_id or str(uuid.uuid4()),
+                            parent_span_id=span.parent_span_id,
+                            type=span.span_type,
+                            name=span.name,
+                            started_at=span.started_at,
+                            ended_at=span.ended_at,
+                            model=span.model,
+                            tokens_in=span.prompt_tokens,
+                            tokens_out=span.completion_tokens,
+                            cost_actual=span.cost_actual,
+                            prompt=span.prompt_text if span.capture_prompt else None,
+                            response=span.response_text
+                            if span.capture_prompt
+                            else None,
+                            detect_injection=span.detect_injection,
+                        )
+                    ],
+                )
+            ]
+        )
+    job = Job(
+        kind="ingest",
+        payload={
+            "project_id": project.id,
+            "traces": [t.model_dump(mode="json") for t in body.traces],
+        },
+    )
+    db.add(job)
+    db.commit()
     return {"accepted": True, "job_id": job.id}
 
 
 @app.get("/v1/traces/{project_id}")
-def traces(project_id: str, limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0), project: Project = Depends(project_auth), db: Session = Depends(db_session)):
-    if project.id != project_id: raise HTTPException(403, "project mismatch")
-    rows = db.scalars(select(Trace).where(Trace.project_id == project_id).order_by(Trace.created_at.desc()).offset(offset).limit(limit)).all()
+def traces(
+    project_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    project: Project = Depends(project_auth),
+    db: Session = Depends(db_session),
+):
+    if project.id != project_id:
+        raise HTTPException(403, "project mismatch")
+    rows = db.scalars(
+        select(Trace)
+        .where(Trace.project_id == project_id)
+        .order_by(Trace.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
     items = []
     for trace in rows:
-        risk = max((span.risk_score for span in db.scalars(select(Span).where(Span.trace_id == trace.id))), default=0.0)
-        items.append({"trace_id": trace.id, "status": trace.status, "model": trace.model, "cost_actual": trace.total_cost_actual, "cost_estimated": trace.total_cost_estimated, "risk_score": risk})
+        risk = max(
+            (
+                span.risk_score
+                for span in db.scalars(select(Span).where(Span.trace_id == trace.id))
+            ),
+            default=0.0,
+        )
+        items.append(
+            {
+                "trace_id": trace.id,
+                "status": trace.status,
+                "model": trace.model,
+                "cost_actual": trace.total_cost_actual,
+                "cost_estimated": trace.total_cost_estimated,
+                "risk_score": risk,
+            }
+        )
     return {"items": items, "offset": offset, "limit": limit}
 
 
 @app.post("/v1/eval/run", status_code=status.HTTP_202_ACCEPTED)
-def eval_run(body: EvalIn, project: Project = Depends(project_auth), db: Session = Depends(db_session)):
-    run = EvalRun(project_id=project.id, dataset_version=body.dataset_version, config_id=body.config_id, baseline_score=body.baseline_score, variance=body.variance)
-    db.add(run); db.flush(); db.add(Job(kind="eval", payload={"eval_run_id": run.id, "cases": [c.model_dump() for c in body.cases]})); db.commit()
+def eval_run(
+    body: EvalIn,
+    project: Project = Depends(project_auth),
+    db: Session = Depends(db_session),
+):
+    run = EvalRun(
+        project_id=project.id,
+        dataset_version=body.dataset_version,
+        config_id=body.config_id,
+        baseline_score=body.baseline_score,
+        variance=body.variance,
+    )
+    db.add(run)
+    db.flush()
+    db.add(
+        Job(
+            kind="eval",
+            payload={
+                "eval_run_id": run.id,
+                "cases": [c.model_dump() for c in body.cases],
+            },
+        )
+    )
+    db.commit()
     return {"accepted": True, "eval_run_id": run.id}
 
 
 @app.get("/v1/eval/runs/{project_id}")
-def eval_runs(project_id: str, project: Project = Depends(project_auth), db: Session = Depends(db_session)):
-    if project.id != project_id: raise HTTPException(403, "project mismatch")
-    rows = db.scalars(select(EvalRun).where(EvalRun.project_id == project_id).order_by(EvalRun.created_at.desc())).all()
-    return {"items": [{"eval_run_id": r.id, "dataset_version": r.dataset_version, "config_id": r.config_id, "baseline_score": r.baseline_score, "variance": r.variance, "result_score": r.result_score, "passed": r.passed, "status": r.status, "worst_cases": r.worst_cases} for r in rows]}
+def eval_runs(
+    project_id: str,
+    project: Project = Depends(project_auth),
+    db: Session = Depends(db_session),
+):
+    if project.id != project_id:
+        raise HTTPException(403, "project mismatch")
+    rows = db.scalars(
+        select(EvalRun)
+        .where(EvalRun.project_id == project_id)
+        .order_by(EvalRun.created_at.desc())
+    ).all()
+    return {
+        "items": [
+            {
+                "eval_run_id": r.id,
+                "dataset_version": r.dataset_version,
+                "config_id": r.config_id,
+                "baseline_score": r.baseline_score,
+                "variance": r.variance,
+                "result_score": r.result_score,
+                "passed": r.passed,
+                "status": r.status,
+                "worst_cases": r.worst_cases,
+            }
+            for r in rows
+        ]
+    }
 
 
 @app.get("/v1/alerts/{project_id}")
-def alerts(project_id: str, project: Project = Depends(project_auth), db: Session = Depends(db_session)):
-    if project.id != project_id: raise HTTPException(403, "project mismatch")
-    return {"items": [{"alert_id": a.id, "eval_run_id": a.eval_run_id, "kind": a.kind, "message": a.message} for a in db.scalars(select(Alert).where(Alert.project_id == project_id))]}
+def alerts(
+    project_id: str,
+    project: Project = Depends(project_auth),
+    db: Session = Depends(db_session),
+):
+    if project.id != project_id:
+        raise HTTPException(403, "project mismatch")
+    return {
+        "items": [
+            {
+                "alert_id": a.id,
+                "eval_run_id": a.eval_run_id,
+                "kind": a.kind,
+                "message": a.message,
+            }
+            for a in db.scalars(select(Alert).where(Alert.project_id == project_id))
+        ]
+    }
 
 
 @app.post("/internal/maintenance/purge")
-def purge(x_admin_token: str | None = Header(default=None), db: Session = Depends(db_session)):
-    if not ADMIN_TOKEN or x_admin_token != ADMIN_TOKEN: raise HTTPException(401, "admin token required")
+def purge(
+    x_admin_token: str | None = Header(default=None), db: Session = Depends(db_session)
+):
+    if not ADMIN_TOKEN or x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(401, "admin token required")
     return {"purged_traces": purge_expired(db)}

@@ -35,7 +35,9 @@ def check(provider: str, key: str) -> int:
     warning = _key_provider_warning(key, provider)
     if warning:
         print(f"FAIL  {warning}")
-        print("      Correct the variable name in .env, or get a key from the right provider.")
+        print(
+            "      Correct the variable name in .env, or get a key from the right provider."
+        )
         return 1
 
     try:
@@ -65,7 +67,9 @@ def check(provider: str, key: str) -> int:
         print(f"      {text[:200].strip()}")
         if status in (401, 403):
             print("      The key is invalid, revoked, or blocked for this model.")
-        elif status == 402 or "insufficient_quota" in text or "no credit" in text.lower():
+        elif (
+            status == 402 or "insufficient_quota" in text or "no credit" in text.lower()
+        ):
             # OpenRouter reports a zero balance as 402; OpenAI uses 429 with an
             # "insufficient_quota" error type. Same cause, different status.
             print("      The key is valid but the account has no credit.")
@@ -81,7 +85,9 @@ def check(provider: str, key: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify a key works before judging.")
     parser.add_argument("--openai", action="store_true", help="Check as an OpenAI key.")
-    parser.add_argument("--openrouter", action="store_true", help="Check as an OpenRouter key.")
+    parser.add_argument(
+        "--openrouter", action="store_true", help="Check as an OpenRouter key."
+    )
     parser.add_argument("--groq", action="store_true", help="Check as a Groq key.")
     args = parser.parse_args(argv)
 

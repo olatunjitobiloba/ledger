@@ -129,9 +129,8 @@ def load_report(path: str) -> tuple[str, str, dict[str, Any]]:
 
     raw = resolved.read_bytes()
     report = json.loads(raw)
-    if (
-        not isinstance(report, dict)
-        or resolved.parent.name != report.get("rehearsal_id")
+    if not isinstance(report, dict) or resolved.parent.name != report.get(
+        "rehearsal_id"
     ):
         raise ValueError("Report path does not match its rehearsal identity.")
     return (

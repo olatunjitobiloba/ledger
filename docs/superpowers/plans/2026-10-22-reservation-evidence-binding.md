@@ -43,27 +43,36 @@ Add these test methods to `ExecutionContextTests`:
 def test_unbound_execution(self):
     self.assertIsNone(context_from_environment({}))
 
+
 def test_complete_environment(self):
-    context = context_from_environment({
-        RESERVATION_ENV: self.reservation(),
-        PLAN_ENV: self.digest(),
-    })
+    context = context_from_environment(
+        {
+            RESERVATION_ENV: self.reservation(),
+            PLAN_ENV: self.digest(),
+        }
+    )
     self.assertEqual(context["reservation_id"], self.reservation())
+
 
 def test_partial_environment_rejected(self):
     with self.assertRaises(ValueError):
         context_from_environment({RESERVATION_ENV: self.reservation()})
 
+
 def test_empty_environment_value_rejected(self):
     with self.assertRaises(ValueError):
-        context_from_environment({
-            RESERVATION_ENV: "",
-            PLAN_ENV: self.digest(),
-        })
+        context_from_environment(
+            {
+                RESERVATION_ENV: "",
+                PLAN_ENV: self.digest(),
+            }
+        )
+
 
 def test_invalid_hash_rejected(self):
     with self.assertRaises(ValueError):
         make_context(self.reservation(), "not-a-hash")
+
 
 def test_matching_context(self):
     context = make_context(self.reservation(), self.digest())
@@ -72,13 +81,16 @@ def test_matching_context(self):
         context,
     )
 
+
 def test_wrong_reservation_rejected(self):
     context = make_context(self.reservation(), self.digest())
     with self.assertRaises(ValueError):
         validate_context(context, uuid.uuid4(), self.digest())
 
+
 def test_missing_candidate_binding_rejected(self):
     from unittest.mock import Mock
+
     connection = Mock()
     connection.execute.return_value.fetchone.return_value = (
         {"execution_context": None},

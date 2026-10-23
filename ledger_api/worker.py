@@ -1,4 +1,5 @@
 """Dedicated worker entrypoint for a separate Rumpty Cloud process."""
+
 from __future__ import annotations
 
 import time

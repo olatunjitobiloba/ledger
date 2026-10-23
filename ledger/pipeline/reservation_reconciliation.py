@@ -255,8 +255,10 @@ def reconcile(args: argparse.Namespace) -> int:
         summary["reasons"] = [str(exc)]
     except Exception as exc:
         summary["reasons"] = [
-            (f"Reconciliation could not complete ({type(exc).__name__}); "
-            "verify stored evidence, policy, database access, and local logs.")
+            (
+                f"Reconciliation could not complete ({type(exc).__name__}); "
+                "verify stored evidence, policy, database access, and local logs."
+            )
         ]
 
     summary["finished_at"] = datetime.now(UTC).isoformat()
@@ -275,9 +277,7 @@ def reconcile(args: argparse.Namespace) -> int:
 class ReservationReconciliationTests(unittest.TestCase):
     def test_finished_candidate(self):
         candidate = uuid.uuid4()
-        self.assertEqual(
-            require_finished_candidate("FINISHED", candidate), candidate
-        )
+        self.assertEqual(require_finished_candidate("FINISHED", candidate), candidate)
 
     def test_running_rejected(self):
         with self.assertRaises(ValueError):

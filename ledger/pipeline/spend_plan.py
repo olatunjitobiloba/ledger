@@ -59,11 +59,7 @@ def role_estimate(settings: object, logical_calls: int) -> dict[str, Any]:
     if not isinstance(settings, dict):
         raise ValueError("Each usage role needs a settings object.")
     model = settings.get("model")
-    if (
-        not isinstance(model, str)
-        or not model.strip()
-        or "REPLACE" in model
-    ):
+    if not isinstance(model, str) or not model.strip() or "REPLACE" in model:
         raise ValueError("Provide the actual requested model for each role.")
 
     input_price = money(settings.get("input_usd_per_million"))
@@ -81,10 +77,7 @@ def role_estimate(settings: object, logical_calls: int) -> dict[str, Any]:
     planned_attempts = logical_calls * attempts
     estimate = (
         Decimal(planned_attempts)
-        * (
-            Decimal(input_tokens) * input_price
-            + Decimal(output_tokens) * output_price
-        )
+        * (Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price)
         / MILLION
     )
     return {
@@ -97,9 +90,7 @@ def role_estimate(settings: object, logical_calls: int) -> dict[str, Any]:
     }
 
 
-def calculate(
-    policy: dict[str, Any], case_count: int, repeats: int
-) -> dict[str, Any]:
+def calculate(policy: dict[str, Any], case_count: int, repeats: int) -> dict[str, Any]:
     positive_integer(case_count, "Case count")
     positive_integer(repeats, "Repeats")
 
@@ -109,19 +100,13 @@ def calculate(
         raise ValueError("This planner currently supports USD only.")
 
     source = policy.get("pricing_source")
-    if (
-        not isinstance(source, str)
-        or not source.strip()
-        or "REPLACE" in source
-    ):
+    if not isinstance(source, str) or not source.strip() or "REPLACE" in source:
         raise ValueError("Record your verified pricing source and date.")
 
     budget = money(policy.get("budget_usd"))
     application = role_estimate(policy.get("application"), case_count)
     judge = role_estimate(policy.get("judge"), case_count * repeats)
-    total = Decimal(application["estimated_usd"]) + Decimal(
-        judge["estimated_usd"]
-    )
+    total = Decimal(application["estimated_usd"]) + Decimal(judge["estimated_usd"])
 
     return {
         "currency": "USD",
@@ -144,18 +129,12 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
 
     policy_bytes = POLICY_FILE.read_bytes()
     policy = json.loads(policy_bytes)
-    runtime = json.loads(
-        Path("runtime-config.json").read_text(encoding="utf-8")
-    )
+    runtime = json.loads(Path("runtime-config.json").read_text(encoding="utf-8"))
     if policy.get("application", {}).get("model") != runtime.get("app_model"):
-        raise ValueError(
-            "Application pricing model differs from runtime-config.json."
-        )
+        raise ValueError("Application pricing model differs from runtime-config.json.")
 
     source, source_hash = load_dataset()
-    case_count = sum(
-        case["case_id"].endswith("-good") for case in source["cases"]
-    )
+    case_count = sum(case["case_id"].endswith("-good") for case in source["cases"])
 
     for name in ("allowed_drop", "quality_floor"):
         value = getattr(args, name)
@@ -171,9 +150,7 @@ def build_payload(args: argparse.Namespace) -> dict[str, Any]:
         "baseline_run_id": str(args.baseline),
         "source_dataset_sha256": source_hash,
         "spend_policy_sha256": hash_bytes(policy_bytes),
-        "runtime_config_sha256": hash_bytes(
-            Path("runtime-config.json").read_bytes()
-        ),
+        "runtime_config_sha256": hash_bytes(Path("runtime-config.json").read_bytes()),
         "case_count": case_count,
         "execution": {
             "app_version": args.app_version,

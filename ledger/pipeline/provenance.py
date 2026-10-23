@@ -58,9 +58,7 @@ def require_tracked(path: str) -> None:
 
 def output_path(stdout: str, prefix: str, directory: str) -> Path:
     lines = [
-        line[len(prefix) :]
-        for line in stdout.splitlines()
-        if line.startswith(prefix)
+        line[len(prefix) :] for line in stdout.splitlines() if line.startswith(prefix)
     ]
     if len(lines) != 1:
         raise ValueError("Could not identify exactly one output artifact.")
@@ -71,9 +69,7 @@ def output_path(stdout: str, prefix: str, directory: str) -> Path:
     return path
 
 
-def validate_provenance(
-    provenance: object, expected_commit: str
-) -> None:
+def validate_provenance(provenance: object, expected_commit: str) -> None:
     if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", expected_commit):
         raise ValueError("Expected commit must be a full lowercase Git SHA.")
     if not isinstance(provenance, dict):
@@ -88,7 +84,12 @@ def validate_provenance(
 
 def generate(args: argparse.Namespace) -> None:
     before = clean_commit()
-    for path in ("ledger/pipeline/prompt_evaluation.py", "judge.py", "ledger/pipeline/provenance.py", args.prompt_file):
+    for path in (
+        "ledger/pipeline/prompt_evaluation.py",
+        "judge.py",
+        "ledger/pipeline/provenance.py",
+        args.prompt_file,
+    ):
         require_tracked(path)
 
     completed = subprocess.run(
@@ -215,17 +216,17 @@ def check(args: argparse.Namespace) -> int:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            (f"Check could not complete ({type(exc).__name__}). "
-            "Verify repository, database, and run configuration.")
+            (
+                f"Check could not complete ({type(exc).__name__}). "
+                "Verify repository, database, and run configuration."
+            )
         ]
 
     report["checked_at"] = datetime.now(UTC).isoformat()
     output = Path("results/day11")
     output.mkdir(parents=True, exist_ok=True)
     path = output / f"{uuid.uuid4()}.json"
-    path.write_text(
-        json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"
-    )
+    path.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
 
     print(f"Decision: {report['decision']}")
     for reason in report["reasons"]:
@@ -284,9 +285,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "test":
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(
-            ProvenanceTests
-        )
+        suite = unittest.defaultTestLoader.loadTestsFromTestCase(ProvenanceTests)
         result = unittest.TextTestRunner(verbosity=2).run(suite)
         return 0 if result.wasSuccessful() else 1
 

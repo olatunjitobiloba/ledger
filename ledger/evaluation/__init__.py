@@ -5,8 +5,8 @@ from .reconciliation import reconcile, require_finished_candidate, validate_asso
 
 __all__ = [
     "export_reservation",
-    "restore_bundle",
     "reconcile",
     "require_finished_candidate",
+    "restore_bundle",
     "validate_association",
 ]

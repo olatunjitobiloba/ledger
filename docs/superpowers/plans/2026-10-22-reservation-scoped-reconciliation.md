@@ -47,17 +47,18 @@ Create `ReservationReconciliationTests` with these exact cases:
 ```python
 def test_finished_candidate(self):
     candidate = uuid.uuid4()
-    self.assertEqual(
-        require_finished_candidate("FINISHED", candidate), candidate
-    )
+    self.assertEqual(require_finished_candidate("FINISHED", candidate), candidate)
+
 
 def test_running_rejected(self):
     with self.assertRaises(ValueError):
         require_finished_candidate("RUNNING", uuid.uuid4())
 
+
 def test_missing_candidate_rejected(self):
     with self.assertRaises(ValueError):
         require_finished_candidate("FINISHED", None)
+
 
 def test_matching_child_report(self):
     candidate = uuid.uuid4()
@@ -71,6 +72,7 @@ def test_matching_child_report(self):
         "RECONCILED_RECORDS",
     )
 
+
 def test_wrong_candidate_rejected(self):
     report = {
         "status": "PARTIAL",
@@ -79,6 +81,7 @@ def test_wrong_candidate_rejected(self):
     }
     with self.assertRaises(ValueError):
         validate_child(report, 2, uuid.uuid4(), "a" * 64)
+
 
 def test_wrong_plan_rejected(self):
     candidate = uuid.uuid4()
@@ -90,6 +93,7 @@ def test_wrong_plan_rejected(self):
     with self.assertRaises(ValueError):
         validate_child(report, 2, candidate, "a" * 64)
 
+
 def test_inconsistent_exit_rejected(self):
     candidate = uuid.uuid4()
     report = {
@@ -99,6 +103,7 @@ def test_inconsistent_exit_rejected(self):
     }
     with self.assertRaises(ValueError):
         validate_child(report, 3, candidate, "a" * 64)
+
 
 def test_inconclusive_can_lack_plan_hash(self):
     candidate = uuid.uuid4()
@@ -147,9 +152,7 @@ if (
     or resolved.name != "report.json"
     or not resolved.is_file()
 ):
-    raise ValueError(
-        "Saved rehearsal report is unavailable or outside results/day14."
-    )
+    raise ValueError("Saved rehearsal report is unavailable or outside results/day14.")
 
 raw = resolved.read_bytes()
 if sha256(raw) != expected_hash:
@@ -204,9 +207,7 @@ summary = {
 Inside `try`, open `connect()` and a transaction, then execute:
 
 ```python
-connection.execute(
-    "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-)
+connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
 ```
 
 Select these reservation columns by UUID:

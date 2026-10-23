@@ -136,9 +136,11 @@ def backfill() -> None:
     with connect() as connection, connection.transaction():
         connection.execute(SCHEMA)
 
-    with connect() as connection, connection.transaction(), connection.cursor(
-        name="cost_backfill"
-    ) as cursor:
+    with (
+        connect() as connection,
+        connection.transaction(),
+        connection.cursor(name="cost_backfill") as cursor,
+    ):
         # Stream existing results rather than loading the entire table.
         cursor.execute(
             """

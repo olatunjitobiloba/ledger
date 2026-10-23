@@ -95,9 +95,7 @@ def build_binding() -> dict[str, Any]:
 
 
 def validate_binding(stored: object, expected: dict[str, Any]) -> None:
-    if not isinstance(stored, dict) or not isinstance(
-        stored.get("payload"), dict
-    ):
+    if not isinstance(stored, dict) or not isinstance(stored.get("payload"), dict):
         raise ValueError("Candidate has no valid runtime binding.")
     if stored["payload"].get("version") != BINDING_VERSION:
         raise ValueError("Unsupported runtime binding version.")
@@ -152,9 +150,7 @@ def generate(args: argparse.Namespace) -> None:
             "Commit-bound generation failed; no runtime binding was attached."
         )
 
-    path = output_path(
-        completed.stdout, "Generation artifact: ", "results/day7"
-    )
+    path = output_path(completed.stdout, "Generation artifact: ", "results/day7")
     if clean_commit() != commit:
         raise ValueError("Commit changed during generation.")
     after = build_binding()
@@ -210,9 +206,7 @@ def check(args: argparse.Namespace) -> int:
                 "application_prompt_sha256": run_config.get(
                     "application_prompt_sha256"
                 ),
-                "source_dataset_sha256": run_config.get(
-                    "source_dataset_sha256"
-                ),
+                "source_dataset_sha256": run_config.get("source_dataset_sha256"),
             },
             expected,
         )
@@ -240,10 +234,7 @@ def check(args: argparse.Namespace) -> int:
         path = output_path(completed.stdout, "Report: ", "results/day11")
         underlying = json.loads(path.read_text(encoding="utf-8"))
         decision = underlying.get("decision")
-        if (
-            decision not in EXIT_CODES
-            or completed.returncode != EXIT_CODES[decision]
-        ):
+        if decision not in EXIT_CODES or completed.returncode != EXIT_CODES[decision]:
             raise ValueError("Underlying check produced inconsistent output.")
 
         report.update(underlying)
@@ -258,17 +249,17 @@ def check(args: argparse.Namespace) -> int:
         report["reasons"] = [str(exc)]
     except Exception as exc:
         report["reasons"] = [
-            (f"Check could not complete ({type(exc).__name__}). "
-            "Verify dependencies, repository, and database setup.")
+            (
+                f"Check could not complete ({type(exc).__name__}). "
+                "Verify dependencies, repository, and database setup."
+            )
         ]
 
     report["checked_at"] = datetime.now(UTC).isoformat()
     directory = Path("results/day12")
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{uuid.uuid4()}.json"
-    path.write_text(
-        json.dumps(report, indent=2, allow_nan=False), encoding="utf-8"
-    )
+    path.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
     print(f"Decision: {report['decision']}")
     for reason in report["reasons"]:
         print(f"- {reason}")

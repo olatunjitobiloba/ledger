@@ -1,8 +1,8 @@
 """Portable reservation evidence bundle primitives.
 
-    python -m ledger.pipeline.evidence_bundle test
-    python -m ledger.pipeline.evidence_bundle export --reservation RESERVATION_UUID --output PATH.zip
-    python -m ledger.pipeline.evidence_bundle restore --bundle PATH.zip
+python -m ledger.pipeline.evidence_bundle test
+python -m ledger.pipeline.evidence_bundle export --reservation RESERVATION_UUID --output PATH.zip
+python -m ledger.pipeline.evidence_bundle restore --bundle PATH.zip
 """
 
 from __future__ import annotations
@@ -84,7 +84,10 @@ def validate_report_path(path: object, *, must_exist: bool) -> Path:
 
 def _canonical_json(value: object) -> bytes:
     return json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
         allow_nan=False,
     ).encode("utf-8")
 
@@ -118,9 +121,13 @@ def build_archive(
     }
     if any(len(raw) > MAX_MEMBER_BYTES for raw in members.values()):
         raise ValueError("Evidence member exceeds size limit.")
-    if verify_member_hash(plan_bytes, manifest.get("plan_sha256")) != sha256(plan_bytes):
+    if verify_member_hash(plan_bytes, manifest.get("plan_sha256")) != sha256(
+        plan_bytes
+    ):
         raise ValueError("Plan hash does not match manifest.")
-    if verify_member_hash(rehearsal_bytes, manifest.get("rehearsal_sha256")) != sha256(rehearsal_bytes):
+    if verify_member_hash(rehearsal_bytes, manifest.get("rehearsal_sha256")) != sha256(
+        rehearsal_bytes
+    ):
         raise ValueError("Rehearsal hash does not match manifest.")
     output = tempfile.SpooledTemporaryFile(max_size=MAX_ARCHIVE_BYTES)
     try:
@@ -135,8 +142,7 @@ def build_archive(
         raise ValueError("Evidence archive exceeds size limit.")
     with zipfile.ZipFile(__import__("io").BytesIO(raw)) as archive:
         if any(
-            info.file_size > MAX_MEMBER_BYTES
-            or info.compress_size > MAX_MEMBER_BYTES
+            info.file_size > MAX_MEMBER_BYTES or info.compress_size > MAX_MEMBER_BYTES
             for info in archive.infolist()
         ):
             raise ValueError("Evidence member exceeds size limit.")
@@ -227,7 +233,11 @@ def publish_no_overwrite(path: Path, content: bytes) -> str:
         try:
             os.link(temporary, path)
         except FileExistsError:
-            if path.is_file() and not path.is_symlink() and path.read_bytes() == content:
+            if (
+                path.is_file()
+                and not path.is_symlink()
+                and path.read_bytes() == content
+            ):
                 return "ALREADY_PRESENT"
             raise ValueError("Refusing to replace existing output.") from None
         return "PUBLISHED"
@@ -241,9 +251,7 @@ def publish_no_overwrite(path: Path, content: bytes) -> str:
 
 def export_reservation(args: argparse.Namespace) -> int:
     with connect() as connection, connection.transaction():
-        connection.execute(
-            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-        )
+        connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
         row = connection.execute(
             """
                 SELECT state, plan, plan_sha256, candidate_run_id, exit_code,
@@ -297,9 +305,7 @@ def export_reservation(args: argparse.Namespace) -> int:
             raise ValueError("Candidate run does not exist.")
         config, reviewed_by = candidate_row
         validate_context(
-            config.get("execution_context")
-            if isinstance(config, dict)
-            else None,
+            config.get("execution_context") if isinstance(config, dict) else None,
             args.reservation,
             plan_hash,
         )
@@ -361,9 +367,7 @@ def restore_bundle(args: argparse.Namespace) -> int:
         raise ValueError("Rehearsal report ID differs from manifest path.")
 
     with connect() as connection, connection.transaction():
-        connection.execute(
-            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
-        )
+        connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
         row = connection.execute(
             """
                 SELECT state, plan, plan_sha256, candidate_run_id, exit_code,
@@ -384,9 +388,7 @@ def restore_bundle(args: argparse.Namespace) -> int:
             receiving_report_path,
             receiving_report_hash,
         ) = row
-        finished_candidate = require_finished_candidate(
-            state, receiving_candidate
-        )
+        finished_candidate = require_finished_candidate(state, receiving_candidate)
         if finished_candidate != bundled_candidate:
             raise ValueError("Receiving candidate differs from bundle.")
         if receiving_plan_hash != plan_hash or receiving_plan != plan:
@@ -417,9 +419,7 @@ def restore_bundle(args: argparse.Namespace) -> int:
         config, reviewed_by = candidate_row
         if not isinstance(config, dict):
             raise ValueError("Candidate configuration is invalid.")
-        validate_context(
-            config.get("execution_context"), reservation_id, plan_hash
-        )
+        validate_context(config.get("execution_context"), reservation_id, plan_hash)
         validate_candidate(config, reviewed_by, plan)
 
     trusted_path = validate_report_path(receiving_report_path, must_exist=False)
@@ -437,7 +437,9 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             "rehearsal_sha256": sha256(rehearsal),
         }
 
-    def restore_fixture(self) -> tuple[dict[str, Any], bytes, bytes, uuid.UUID, uuid.UUID]:
+    def restore_fixture(
+        self,
+    ) -> tuple[dict[str, Any], bytes, bytes, uuid.UUID, uuid.UUID]:
         reservation_id = uuid.UUID("11111111-1111-4111-8111-111111111111")
         candidate_id = uuid.UUID("22222222-2222-4222-8222-222222222222")
         plan = canonical_plan_bytes({})
@@ -447,9 +449,7 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             {
                 "reservation_id": str(reservation_id),
                 "candidate_run_id": str(candidate_id),
-                "rehearsal_report": (
-                    f"results/day14/{candidate_id}/report.json"
-                ),
+                "rehearsal_report": (f"results/day14/{candidate_id}/report.json"),
             }
         )
         return manifest, plan, rehearsal, reservation_id, candidate_id
@@ -524,7 +524,9 @@ class PortableEvidenceBundleTests(unittest.TestCase):
         self.assertEqual(read_rehearsal, b"report")
 
     def test_reject_compressed_member_over_size_limit(self):
-        archive_bytes = build_archive(self.manifest(b'{"a":1}', b"report"), b'{"a":1}', b"report")
+        archive_bytes = build_archive(
+            self.manifest(b'{"a":1}', b"report"), b'{"a":1}', b"report"
+        )
         with zipfile.ZipFile(__import__("io").BytesIO(archive_bytes)) as archive:
             infos = archive.infolist()
         infos[0].compress_size = MAX_MEMBER_BYTES + 1
@@ -594,7 +596,11 @@ class PortableEvidenceBundleTests(unittest.TestCase):
                 target = workspace / "real-day14"
                 target.mkdir()
                 try:
-                    os.symlink(target, workspace / "results" / "day14", target_is_directory=True)
+                    os.symlink(
+                        target,
+                        workspace / "results" / "day14",
+                        target_is_directory=True,
+                    )
                 except OSError:
                     self.skipTest("symlinks are unavailable")
                 with self.assertRaises(ValueError):
@@ -639,9 +645,12 @@ class PortableEvidenceBundleTests(unittest.TestCase):
             for name in ("manifest.json", "plan.json", "rehearsal.json"):
                 raw = (
                     json.dumps(
-                        {"version": "wrong", "signed": False,
-                         "plan_sha256": sha256(plan),
-                         "rehearsal_sha256": sha256(rehearsal)}
+                        {
+                            "version": "wrong",
+                            "signed": False,
+                            "plan_sha256": sha256(plan),
+                            "rehearsal_sha256": sha256(rehearsal),
+                        }
                     ).encode()
                     if name == "manifest.json"
                     else {"plan.json": plan, "rehearsal.json": rehearsal}[name]
@@ -669,15 +678,23 @@ class PortableEvidenceBundleTests(unittest.TestCase):
                     self.write_restore_archive(Path(directory))
                 )
                 receiving_row = (
-                    "FINISHED", json.loads(plan), sha256(plan),
-                    uuid.UUID("33333333-3333-4333-8333-333333333333"), 0,
-                    manifest["rehearsal_report"], sha256(rehearsal),
+                    "FINISHED",
+                    json.loads(plan),
+                    sha256(plan),
+                    uuid.UUID("33333333-3333-4333-8333-333333333333"),
+                    0,
+                    manifest["rehearsal_report"],
+                    sha256(rehearsal),
                 )
-                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
-                with patch(__name__ + ".connect", return_value=connection), \
-                     patch(__name__ + ".validate_association"), \
-                     patch(__name__ + ".validate_context"), \
-                     patch(__name__ + ".validate_candidate"):
+                connection = self.mock_restore_connection(
+                    receiving_row, ({}, "reviewer")
+                )
+                with (
+                    patch(__name__ + ".connect", return_value=connection),
+                    patch(__name__ + ".validate_association"),
+                    patch(__name__ + ".validate_context"),
+                    patch(__name__ + ".validate_candidate"),
+                ):
                     with self.assertRaises(ValueError):
                         restore_bundle(self.restore_args(bundle))
                 self.assertFalse(Path(manifest["rehearsal_report"]).exists())
@@ -693,14 +710,23 @@ class PortableEvidenceBundleTests(unittest.TestCase):
                     self.write_restore_archive(Path(directory))
                 )
                 receiving_row = (
-                    "FINISHED", json.loads(plan), sha256(plan), candidate_id, 0,
-                    manifest["rehearsal_report"], sha256(rehearsal),
+                    "FINISHED",
+                    json.loads(plan),
+                    sha256(plan),
+                    candidate_id,
+                    0,
+                    manifest["rehearsal_report"],
+                    sha256(rehearsal),
                 )
-                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
-                with patch(__name__ + ".connect", return_value=connection), \
-                     patch(__name__ + ".validate_association"), \
-                     patch(__name__ + ".validate_context"), \
-                     patch(__name__ + ".validate_candidate"):
+                connection = self.mock_restore_connection(
+                    receiving_row, ({}, "reviewer")
+                )
+                with (
+                    patch(__name__ + ".connect", return_value=connection),
+                    patch(__name__ + ".validate_association"),
+                    patch(__name__ + ".validate_context"),
+                    patch(__name__ + ".validate_candidate"),
+                ):
                     self.assertEqual(restore_bundle(self.restore_args(bundle)), 0)
                 self.assertEqual(
                     Path(manifest["rehearsal_report"]).read_bytes(), rehearsal
@@ -720,15 +746,24 @@ class PortableEvidenceBundleTests(unittest.TestCase):
                 trusted.parent.mkdir(parents=True)
                 trusted.write_bytes(rehearsal)
                 receiving_row = (
-                    "FINISHED", json.loads(plan), sha256(plan), candidate_id, 0,
-                    manifest["rehearsal_report"], sha256(rehearsal),
+                    "FINISHED",
+                    json.loads(plan),
+                    sha256(plan),
+                    candidate_id,
+                    0,
+                    manifest["rehearsal_report"],
+                    sha256(rehearsal),
                 )
-                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
-                with patch(__name__ + ".connect", return_value=connection), \
-                     patch(__name__ + ".validate_association"), \
-                     patch(__name__ + ".validate_context"), \
-                     patch(__name__ + ".validate_candidate"), \
-                     patch("builtins.print") as print_mock:
+                connection = self.mock_restore_connection(
+                    receiving_row, ({}, "reviewer")
+                )
+                with (
+                    patch(__name__ + ".connect", return_value=connection),
+                    patch(__name__ + ".validate_association"),
+                    patch(__name__ + ".validate_context"),
+                    patch(__name__ + ".validate_candidate"),
+                    patch("builtins.print") as print_mock,
+                ):
                     self.assertEqual(restore_bundle(self.restore_args(bundle)), 0)
                 self.assertIn("ALREADY_PRESENT", print_mock.call_args.args[0])
             finally:
@@ -746,14 +781,23 @@ class PortableEvidenceBundleTests(unittest.TestCase):
                 trusted.parent.mkdir(parents=True)
                 trusted.write_bytes(b"existing evidence")
                 receiving_row = (
-                    "FINISHED", json.loads(plan), sha256(plan), candidate_id, 0,
-                    manifest["rehearsal_report"], sha256(rehearsal),
+                    "FINISHED",
+                    json.loads(plan),
+                    sha256(plan),
+                    candidate_id,
+                    0,
+                    manifest["rehearsal_report"],
+                    sha256(rehearsal),
                 )
-                connection = self.mock_restore_connection(receiving_row, ({}, "reviewer"))
-                with patch(__name__ + ".connect", return_value=connection), \
-                     patch(__name__ + ".validate_association"), \
-                     patch(__name__ + ".validate_context"), \
-                     patch(__name__ + ".validate_candidate"):
+                connection = self.mock_restore_connection(
+                    receiving_row, ({}, "reviewer")
+                )
+                with (
+                    patch(__name__ + ".connect", return_value=connection),
+                    patch(__name__ + ".validate_association"),
+                    patch(__name__ + ".validate_context"),
+                    patch(__name__ + ".validate_candidate"),
+                ):
                     with self.assertRaises(ValueError):
                         restore_bundle(self.restore_args(bundle))
                 self.assertEqual(trusted.read_bytes(), b"existing evidence")
@@ -772,7 +816,9 @@ def main() -> int:
     restore.add_argument("--bundle", required=True, type=Path)
     args = parser.parse_args()
     if args.command == "test":
-        result = unittest.main(argv=[sys.argv[0], "PortableEvidenceBundleTests"], exit=False)
+        result = unittest.main(
+            argv=[sys.argv[0], "PortableEvidenceBundleTests"], exit=False
+        )
         return 0 if result.result.wasSuccessful() else 1
     if args.command == "export":
         return export_reservation(args)
