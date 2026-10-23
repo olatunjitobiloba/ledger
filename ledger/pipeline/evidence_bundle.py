@@ -511,7 +511,7 @@ class PortableEvidenceBundleTests(unittest.TestCase):
         )
         self.assertEqual(manifest["plan_sha256"], sha256(plan))
 
-    def test_unicode_plan_matches_day16_hash_and_round_trips(self):
+    def test_unicode_plan_matches_spend_plan_hash_and_round_trips(self):
         plan = {"payload": {"description": "Café — réservé"}}
         plan_bytes = canonical_plan_bytes(plan)
         self.assertEqual(canonical_hash(plan), sha256(plan_bytes))
