@@ -2,6 +2,7 @@
 
 import { useRef } from "react"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
+import { cn } from "cn"
 import { EASE_OUT, MOTION_OK, ScrollTrigger, gsap, useGSAP } from "@/lib/gsap"
 
 export type Step = {
@@ -14,6 +15,77 @@ export type Step = {
 
 const RINGS = [95, 160, 225]
 const STAGE = 520
+
+/** Where the first card sticks (just under the header), in px. */
+const STACK_TOP = 88
+/** How much of each older card stays visible above the next one, in px. */
+const STACK_PEEK = 18
+/** Scale lost per card stacked on top. */
+const STACK_SHRINK = 0.04
+
+const stackTop = (i: number) => STACK_TOP + i * STACK_PEEK
+
+/**
+ * On large screens the cards pin under the header and pile up as you scroll:
+ * each newer card sticks a little lower, while the ones beneath shrink from
+ * their top edge and dim, leaving a strip of each visible. Smaller screens get
+ * a plain list, since a pinned card taller than the viewport would hide its
+ * own bottom half.
+ */
+export function StepStack({ steps, className }: { steps: Step[]; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia()
+      mm.add(`(min-width: 1024px) and ${MOTION_OK}`, () => {
+        const items = gsap.utils.toArray<HTMLElement>("[data-stack-item]")
+        const last = items[items.length - 1]
+
+        items.slice(0, -1).forEach((item, i) => {
+          const depth = items.length - 1 - i
+          // Shrink from the moment this card pins until the last one lands.
+          const scrollTrigger = {
+            trigger: item,
+            start: `top ${stackTop(i)}px`,
+            endTrigger: last,
+            end: `top ${stackTop(items.length - 1)}px`,
+            scrub: true,
+          }
+          gsap.to(item, {
+            scale: 1 - depth * STACK_SHRINK,
+            transformOrigin: "50% 0%",
+            ease: "none",
+            scrollTrigger,
+          })
+          gsap.to(item.querySelector("[data-stack-shade]"), {
+            opacity: Math.min(0.18 * depth, 0.5),
+            ease: "none",
+            scrollTrigger,
+          })
+        })
+      })
+    },
+    { scope: ref }
+  )
+
+  return (
+    // Spacing must be `gap`, not `space-y`: sticky items count their own
+    // margins against the container edge, which would unpin them early.
+    <div ref={ref} className={cn("flex flex-col gap-5 sm:gap-6 lg:gap-16", className)}>
+      {steps.map((step, i) => (
+        <div
+          key={step.title}
+          data-stack-item
+          className="lg:sticky lg:top-(--stack-top)"
+          style={{ "--stack-top": `${stackTop(i)}px` } as React.CSSProperties}
+        >
+          <StepCard step={step} index={i} />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export function StepCard({ step, index }: { step: Step; index: number }) {
   const ref = useRef<HTMLElement>(null)
@@ -90,8 +162,14 @@ export function StepCard({ step, index }: { step: Step; index: number }) {
     <article
       ref={ref}
       data-reveal
-      className="grid overflow-hidden rounded-[1.75rem] border bg-card lg:grid-cols-2"
+      className="relative grid overflow-hidden rounded-[1.75rem] border bg-card shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.12)] lg:grid-cols-2 dark:shadow-[0_-12px_40px_-12px_rgb(0_0_0/0.6)]"
     >
+      {/* Darkens the card as newer cards stack over it (see StepStack). */}
+      <div
+        data-stack-shade
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-10 bg-background opacity-0"
+      />
       <div className="flex flex-col justify-between gap-12 bg-foreground/[0.025] p-7 sm:p-10 lg:min-h-[26rem]">
         <span
           aria-hidden="true"
