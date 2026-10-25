@@ -23,6 +23,9 @@ self.addEventListener("fetch", (event) => {
   const { request } = event
   const url = new URL(request.url)
   if (request.method !== "GET" || url.origin !== self.location.origin) return
+  // Ledger API data is live and keyed by the X-API-Key header, which the cache
+  // ignores: never serve it from here.
+  if (url.pathname.startsWith("/api/")) return
 
   // Pages: network first so content stays fresh, cache as the offline fallback.
   if (request.mode === "navigate") {
