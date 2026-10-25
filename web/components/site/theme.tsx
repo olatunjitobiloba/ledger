@@ -5,7 +5,7 @@ import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { THEME_COLORS, THEME_STORAGE_KEY } from "@/lib/theme-script"
 
-function applyTheme(theme: "dark" | "light") {
+export function applyTheme(theme: "dark" | "light") {
   const root = document.documentElement
 
   // Suppress every transition for one frame so colors swap at once instead of

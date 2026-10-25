@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import Link from "next/link"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowRight01Icon,
@@ -92,10 +93,8 @@ export function Hero() {
             data-hero
             className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row"
           >
-            <a
-              href={site.links.quickStart}
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              href="/dashboard"
               className={cn(buttonVariants({ size: "lg" }), "group")}
             >
               Get started
@@ -103,7 +102,7 @@ export function Hero() {
                 icon={ArrowRight01Icon}
                 className="transition-transform duration-150 ease-out group-hover:translate-x-0.5"
               />
-            </a>
+            </Link>
             <a
               href={site.links.repo}
               target="_blank"
