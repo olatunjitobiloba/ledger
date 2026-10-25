@@ -253,6 +253,8 @@ python -m ledger.pipeline.reservation_recovery test   # reservation recovery
 python -m ledger.pipeline.execution_context test   # execution context
 python -m ledger.pipeline.reservation_reconciliation test   # reservation-scoped reconciliation
 python -m ledger.pipeline.evidence_bundle test   # portable evidence bundles
+python -m ledger.pipeline.policy_portability test   # historical pricing-policy packages
+python -m ledger.pipeline.recovery_drill test   # clean-checkout recovery drill
 ```
 
 GitHub Actions runs all offline tests on every push to `main` and on pull
