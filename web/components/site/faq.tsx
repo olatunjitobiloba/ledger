@@ -43,7 +43,7 @@ export function Faq() {
             data-reveal
             className="mt-4 text-3xl leading-[1.1] font-semibold tracking-[-0.03em] sm:text-5xl"
           >
-            Questions, answered.
+            Questions
           </h2>
         </div>
 

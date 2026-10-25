@@ -11,7 +11,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Reveal } from "@/components/site/reveal"
 import { SectionHeading } from "@/components/site/section-heading"
-import { StepCard, type Step } from "@/components/site/step-card"
+import { StepStack, type Step } from "@/components/site/step-card"
 
 const steps: Step[] = [
   {
@@ -55,17 +55,12 @@ export function WhyLedger() {
       <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <Reveal>
           <SectionHeading
-            eyebrow="Why Ledger"
             title="Spot-checks miss regressions. Ledger doesn't."
             description="Most teams ship model updates on a hunch. Cost is invisible until the invoice, and prompt injection is easy to ignore. Ledger turns every release into three steps you can prove."
           />
         </Reveal>
 
-        <div className="mt-12 space-y-5 sm:mt-16 sm:space-y-6">
-          {steps.map((step, i) => (
-            <StepCard key={step.title} step={step} index={i} />
-          ))}
-        </div>
+        <StepStack steps={steps} className="mt-12 sm:mt-16" />
       </div>
     </section>
   )
