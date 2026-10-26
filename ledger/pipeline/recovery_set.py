@@ -19,12 +19,22 @@ import sys
 import tempfile
 import unittest
 import uuid
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
-from ledger.pipeline.policy_portability import inspect_evidence, validate_policy
-from ledger.pipeline.evidence_bundle import read_archive
+from ledger.pipeline.database_recovery import verify_backup
+from ledger.pipeline.evidence_bundle import canonical_plan_bytes, sha256
+from ledger.pipeline.policy_portability import (
+    inspect_evidence,
+    json_bytes,
+    read_package,
+    validate_policy,
+)
 from ledger.pipeline.recovery_drill import file_hash_or_none
+from ledger.pipeline.spend_plan import VERSION as PLAN_VERSION
+from ledger.pipeline.spend_plan import calculate, canonical_hash
 
 VERSION = "ledger-recovery-set-v1"
 FILES = {"database.dump", "database.dump.json", "evidence.zip"}
@@ -58,32 +68,32 @@ def require_hashes(directory: Path, expected: dict[str, str]) -> None:
 
 
 def inspect_inputs(directory: Path) -> dict[str, str]:
-    metadata = json.loads(
-        (directory / "database.dump.json").read_text(encoding="utf-8")
-    )
-    # Verify the backup dump against its manifest
     dump_path = directory / "database.dump"
-    if not dump_path.is_file():
-        raise ValueError("Missing database.dump file")
-    dump_hash = file_hash(dump_path)
-    manifest_metadata = json.loads(
-        (directory / "database.dump.json").read_text(encoding="utf-8")
-    )
-    if manifest_metadata.get("dump_sha256") != dump_hash:
-        raise ValueError("Database dump hash differs from its manifest.")
+    metadata_path = directory / "database.dump.json"
+    package_path = directory / "evidence.zip"
+    for path in (metadata_path, package_path):
+        if path.is_symlink():
+            raise ValueError(f"Recovery input must not be a symlink: {path.name}")
 
-    with (directory / "evidence.zip").open("rb") as f:
-        raw = f.read()
-    manifest, plan_bytes, rehearsal_bytes = read_archive(raw)
-    plan = json.loads(plan_bytes)
-    reservation = uuid.UUID(manifest.get("reservation_id", "0" * 32))
-    policy_hash = validate_policy(plan, files["pricing-policy.json"] if False else b"")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    verify_backup(dump_path, metadata)
+
+    files, manifest = read_package(package_path)
+    plan, inner_manifest, reservation = inspect_evidence(files["evidence.zip"])
+    policy_hash = validate_policy(plan, files["pricing-policy.json"])
+
+    if (
+        manifest.get("reservation_id") != str(reservation)
+        or manifest.get("plan_sha256") != inner_manifest["plan_sha256"]
+        or manifest.get("pricing_policy_sha256") != policy_hash
+    ):
+        raise ValueError("Enclosed package identities disagree.")
 
     return {
         "source_database": metadata["source_database"],
         "reservation_id": str(reservation),
-        "plan_sha256": "",
-        "pricing_policy_sha256": "",
+        "plan_sha256": inner_manifest["plan_sha256"],
+        "pricing_policy_sha256": policy_hash,
     }
 
 
@@ -105,14 +115,17 @@ def verify_set(directory: Path) -> dict[str, str]:
 
 def create_set(args: argparse.Namespace) -> int:
     destination = Path(args.output)
-    # Refuse to merge into or overwrite an existing recovery set.
-    destination.mkdir(parents=True, exist_ok=False)
-
     sources = {
         "database.dump": Path(args.backup),
         "database.dump.json": Path(str(args.backup) + ".json"),
         "evidence.zip": Path(args.package),
     }
+    for name, source in sources.items():
+        if source.is_symlink() or not source.is_file():
+            raise ValueError(f"Missing or unsupported recovery input: {source}")
+
+    # Refuse to merge into or overwrite an existing recovery set.
+    destination.mkdir(parents=True, exist_ok=False)
     for name, source in sources.items():
         shutil.copyfile(source, destination / name)
 
@@ -174,13 +187,14 @@ def drill(args: argparse.Namespace) -> int:
         )
 
         with (
-            (directory / "day25.stdout.log").open("w") as stdout,
-            (directory / "day25.stderr.log").open("w") as stderr,
+            (directory / "database-recovery.stdout.log").open("w") as stdout,
+            (directory / "database-recovery.stderr.log").open("w") as stderr,
         ):
             completed = subprocess.run(
                 [
                     sys.executable,
-                    "day25.py",
+                    "-m",
+                    "ledger.pipeline.database_recovery",
                     "drill",
                     "--backup",
                     str(snapshot / "database.dump"),
@@ -191,16 +205,18 @@ def drill(args: argparse.Namespace) -> int:
                 stdout=stdout,
                 stderr=stderr,
                 text=True,
+                check=False,
             )
 
-        summary["day25_exit_code"] = completed.returncode
+        summary["database_recovery_exit_code"] = completed.returncode
         if completed.returncode != 0:
             raise ValueError(
-                "Day 25 failed. Inspect its captured output and recovery report."
+                "Database recovery drill failed. "
+                "Inspect its captured output and recovery report."
             )
         summary["status"] = "PASSED"
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         summary["reasons"].append(
             str(exc) if isinstance(exc, ValueError)
             else f"Drill failed ({type(exc).__name__}); inspect private logs."
@@ -223,6 +239,163 @@ class RecoverySetTests(unittest.TestCase):
             path.write_bytes(name.encode("utf-8"))
             expected[name] = file_hash(path)
         return expected
+
+    def backup_fixture(self, directory: Path) -> Path:
+        dump = directory / "backup.dump"
+        dump.write_bytes(b"postgresql-custom-dump")
+        write_json(
+            Path(str(dump) + ".json"),
+            {
+                "version": "ledger-database-backup-v1",
+                "created_at": now(),
+                "source_database": "ledger",
+                "dump_sha256": file_hash(dump),
+                "format": "postgresql-custom",
+                "ownership_and_permissions_preserved": False,
+                "signed": False,
+            },
+        )
+        return dump
+
+    def package_fixture(self, directory: Path) -> tuple[Path, uuid.UUID]:
+        reservation = uuid.uuid4()
+        role = {
+            "model": "test-model",
+            "input_usd_per_million": "1",
+            "output_usd_per_million": "2",
+            "planned_input_tokens_per_call": 100,
+            "planned_output_tokens_per_call": 50,
+            "planned_attempts_per_call": 1,
+        }
+        policy = {
+            "version": "ledger-spend-policy-v1",
+            "currency": "USD",
+            "pricing_source": "Synthetic test prices",
+            "budget_usd": "1",
+            "application": dict(role),
+            "judge": dict(role),
+        }
+        policy_raw = json_bytes(policy)
+        payload = {
+            "spend_policy_sha256": sha256(policy_raw),
+            "case_count": 6,
+            "execution": {"repeats": 1},
+            "cost_plan": calculate(policy, 6, 1),
+        }
+        plan = {
+            "version": PLAN_VERSION,
+            "payload": payload,
+            "payload_sha256": canonical_hash(payload),
+        }
+        plan_raw = canonical_plan_bytes(plan)
+        rehearsal_raw = b'{"rehearsal":true}'
+        evidence_manifest = {
+            "version": "ledger-evidence-bundle-v1",
+            "reservation_id": str(reservation),
+            "plan_sha256": sha256(plan_raw),
+            "rehearsal_sha256": sha256(rehearsal_raw),
+            "signed": False,
+        }
+        evidence_path = directory / "inner-evidence.zip"
+        with zipfile.ZipFile(evidence_path, "w") as archive:
+            archive.writestr("manifest.json", json_bytes(evidence_manifest))
+            archive.writestr("plan.json", plan_raw)
+            archive.writestr("rehearsal.json", rehearsal_raw)
+        evidence_raw = evidence_path.read_bytes()
+
+        package_manifest = {
+            "version": "ledger-reconciliation-package-v1",
+            "reservation_id": str(reservation),
+            "plan_sha256": sha256(plan_raw),
+            "pricing_policy_sha256": sha256(policy_raw),
+            "files": {
+                "evidence.zip": sha256(evidence_raw),
+                "pricing-policy.json": sha256(policy_raw),
+            },
+            "signed": False,
+        }
+        package_path = directory / "package.zip"
+        with zipfile.ZipFile(package_path, "w") as archive:
+            archive.writestr("manifest.json", json_bytes(package_manifest))
+            archive.writestr("evidence.zip", evidence_raw)
+            archive.writestr("pricing-policy.json", policy_raw)
+        return package_path, reservation
+
+    def create_fixture(self, root: Path) -> tuple[Path, uuid.UUID]:
+        dump = self.backup_fixture(root)
+        package, reservation = self.package_fixture(root)
+        output = root / "recovery-set"
+        code = create_set(
+            SimpleNamespace(
+                backup=str(dump), package=str(package), output=str(output)
+            )
+        )
+        self.assertEqual(code, 0)
+        return output, reservation
+
+    def test_create_and_verify_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output, reservation = self.create_fixture(Path(temporary))
+            manifest = verify_set(output)
+            self.assertEqual(set(manifest["files"]), FILES)
+            self.assertEqual(
+                manifest["identity"]["reservation_id"], str(reservation)
+            )
+            self.assertEqual(
+                manifest["identity"]["source_database"], "ledger"
+            )
+            self.assertEqual(len(manifest["identity"]["plan_sha256"]), 64)
+            self.assertEqual(
+                len(manifest["identity"]["pricing_policy_sha256"]), 64
+            )
+
+    def test_tampered_dump_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output, _ = self.create_fixture(Path(temporary))
+            (output / "database.dump").write_bytes(b"tampered")
+            with self.assertRaises(ValueError):
+                verify_set(output)
+
+    def test_identity_mismatch_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output, _ = self.create_fixture(Path(temporary))
+            manifest = json.loads(
+                (output / "manifest.json").read_text(encoding="utf-8")
+            )
+            manifest["identity"]["reservation_id"] = str(uuid.uuid4())
+            write_json(output / "manifest.json", manifest)
+            with self.assertRaises(ValueError):
+                verify_set(output)
+
+    def test_missing_source_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "recovery-set"
+            with self.assertRaises(ValueError):
+                create_set(
+                    SimpleNamespace(
+                        backup=str(root / "missing.dump"),
+                        package=str(root / "missing.zip"),
+                        output=str(output),
+                    )
+                )
+            self.assertFalse(output.exists())
+
+    def test_existing_output_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dump = self.backup_fixture(root)
+            package, _ = self.package_fixture(root)
+            output = root / "recovery-set"
+            output.mkdir()
+            with self.assertRaises(FileExistsError):
+                create_set(
+                    SimpleNamespace(
+                        backup=str(dump),
+                        package=str(package),
+                        output=str(output),
+                    )
+                )
 
     def test_matching_hashes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -254,9 +427,11 @@ class RecoverySetTests(unittest.TestCase):
                 require_hashes(directory, expected)
 
     def test_invalid_file_list_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            with self.assertRaises(ValueError):
-                require_hashes(Path(temporary), None)
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            self.assertRaises(ValueError),
+        ):
+            require_hashes(Path(temporary), None)
 
 
 def main() -> int:
@@ -294,7 +469,7 @@ def main() -> int:
             print("Database restoration has not been tested by this command.")
             return 0
         return drill(args)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(
             str(exc) if isinstance(exc, ValueError)
             else f"Operation failed ({type(exc).__name__}). Check private files.",

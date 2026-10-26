@@ -28,6 +28,12 @@ ADMIN_TOKEN = os.getenv("LEDGER_ADMIN_TOKEN", "")
 POLL_SECONDS = float(os.getenv("LEDGER_WORKER_POLL_SECONDS", "0.5"))
 DB_SSLMODE = os.getenv("LEDGER_DB_SSLMODE", "")
 DB_SSLROOTCERT = os.getenv("LEDGER_DB_SSLROOTCERT", "")
+_cors = [
+    origin.strip()
+    for origin in os.getenv("LEDGER_CORS_ORIGINS", "*").split(",")
+    if origin.strip()
+]
+CORS_ORIGINS = _cors or ["*"]
 # SQLite is disposable local development. Managed Postgres must be created by
 # the reviewed migration, never implicitly at API startup.
 AUTO_CREATE_SCHEMA = (

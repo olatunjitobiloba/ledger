@@ -8,11 +8,12 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .config import ADMIN_TOKEN, AUTO_CREATE_SCHEMA, POLL_SECONDS
+from .config import ADMIN_TOKEN, AUTO_CREATE_SCHEMA, CORS_ORIGINS, POLL_SECONDS
 from .database import Base, SessionLocal, engine
 from .models import Alert, EvalRun, Job, Project, Span, Trace
 from .services import authenticate, make_api_key, process_one_job, purge_expired
@@ -46,6 +47,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Ledger API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class ProjectIn(BaseModel):
