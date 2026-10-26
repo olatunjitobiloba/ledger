@@ -1,3 +1,44 @@
-*
-!Dockerfile.eval
-!requirements.txt
+# Git and tooling
+.git
+.github
+.gitignore
+.kilo
+.superpowers
+.vscode
+.idea
+
+# Python
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.egg-info
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Local databases, blobs, and generated evidence
+data/
+results/
+eval_results/
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+
+# Frontend is deployed separately
+web/
+node_modules/
+
+# Documentation and skills are not needed at runtime
+docs/
+skills/
+tests/
