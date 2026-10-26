@@ -114,8 +114,8 @@ jobs:
       - name: Test recovery drill validation
         run: python -m ledger.pipeline.recovery_drill test
 
-      - name: Test database recovery safeguards
-        run: python -m ledger.pipeline.database_recovery test
+      - name: Test recovery-set validation
+        run: python -m ledger.pipeline.recovery_set test
 
   release-check:
     name: Check saved release evidence
