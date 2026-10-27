@@ -75,6 +75,43 @@ def source_database(connection_string: str) -> str:
         return connection.execute("SELECT current_database()").fetchone()[0]
 
 
+COVERAGE_QUERY = """
+    SELECT reservation_id::text, candidate_run_id::text,
+           plan_sha256, rehearsal_report_sha256
+    FROM ledger_spend_reservations
+    WHERE state = 'FINISHED' AND candidate_run_id IS NOT NULL
+    ORDER BY reservation_id
+"""
+
+
+def coverage_entry(row: tuple[Any, ...]) -> dict[str, str]:
+    return {
+        "reservation_id": row[0],
+        "candidate_run_id": row[1],
+        "plan_sha256": row[2],
+        "rehearsal_report_sha256": row[3],
+    }
+
+
+def collect_coverage(connection_string: str) -> dict[str, Any]:
+    coverage: dict[str, Any] = {
+        "collected_at": now(),
+        "table_available": True,
+        "finished_reservations": [],
+    }
+    with psycopg.connect(connection_string) as connection:
+        connection.execute("SET TRANSACTION READ ONLY")
+        try:
+            rows = connection.execute(COVERAGE_QUERY).fetchall()
+        except psycopg.Error as exc:
+            connection.rollback()
+            coverage["table_available"] = False
+            coverage["error"] = type(exc).__name__
+            return coverage
+    coverage["finished_reservations"] = [coverage_entry(row) for row in rows]
+    return coverage
+
+
 def require_safe_target(
     source_name: str, target_name: str, superuser: bool, occupied: bool
 ) -> None:
@@ -216,6 +253,10 @@ def backup(args: argparse.Namespace) -> int:
     require_tool("pg_dump")
     source = required_environment("DATABASE_URL")
     source_name = source_database(source)
+    # Capture coverage before the dump starts. A reservation that finishes during
+    # the dump may be inside it but absent here, which the audit reports as a gap
+    # rather than assuming coverage.
+    coverage = collect_coverage(source)
 
     destination = Path(args.output)
     manifest_path = metadata_path(destination)
@@ -262,6 +303,7 @@ def backup(args: argparse.Namespace) -> int:
         "format": "postgresql-custom",
         "ownership_and_permissions_preserved": False,
         "signed": False,
+        "coverage": coverage,
     }
     publish_no_overwrite(
         manifest_path,
@@ -374,6 +416,18 @@ def drill(args: argparse.Namespace) -> int:
 
 
 class DatabaseRecoveryTests(unittest.TestCase):
+    def test_coverage_entry_keeps_identity_fields(self) -> None:
+        entry = coverage_entry(("r", "c", "p", "h"))
+        self.assertEqual(
+            entry,
+            {
+                "reservation_id": "r",
+                "candidate_run_id": "c",
+                "plan_sha256": "p",
+                "rehearsal_report_sha256": "h",
+            },
+        )
+
     def test_distinct_empty_target(self) -> None:
         require_safe_target("ledger", "ledger_drill", False, False)
 
