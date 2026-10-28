@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { GithubIcon, Menu01Icon } from "@hugeicons/core-free-icons"
 import { cn } from "cn"
@@ -77,14 +78,12 @@ export function Header() {
             <HugeiconsIcon icon={GithubIcon} className="size-[18px]" />
           </a>
           <ThemeToggle />
-          <a
-            href={site.links.quickStart}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            href="/dashboard"
             className={cn(buttonVariants(), "ml-1 hidden sm:inline-flex")}
           >
             Get started
-          </a>
+          </Link>
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger
@@ -118,14 +117,12 @@ export function Header() {
                 )}
               </nav>
               <div className="mt-auto border-t p-5">
-                <a
-                  href={site.links.quickStart}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href="/dashboard"
                   className={cn(buttonVariants({ size: "lg" }), "w-full")}
                 >
                   Get started
-                </a>
+                </Link>
               </div>
             </SheetContent>
           </Sheet>

@@ -2,21 +2,26 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import logging
 import re
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .config import ADMIN_TOKEN, AUTO_CREATE_SCHEMA, CORS_ORIGINS, POLL_SECONDS
 from .database import Base, SessionLocal, engine
 from .models import Alert, EvalRun, Job, Project, Span, Trace
 from .services import authenticate, make_api_key, process_one_job, purge_expired
+
+logger = logging.getLogger("ledger_api")
 
 
 def db_session():
@@ -47,6 +52,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Ledger API", version="0.1.0", lifespan=lifespan)
+
+
+# Registered before CORSMiddleware so it runs inside it: unexpected errors then
+# leave with CORS headers and a JSON body that browsers can read, instead of a
+# bare 500 that a cross-origin dashboard can only report as a network failure.
+@app.middleware("http")
+async def json_errors(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception("unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse({"detail": "internal server error"}, status_code=500)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -173,7 +192,12 @@ def create_project(
             raise HTTPException(422, f"invalid redact pattern: {exc}")
     project = Project(**body.model_dump())
     db.add(project)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        # Project names are unique.
+        db.rollback()
+        raise HTTPException(409, f"a project named {body.name!r} already exists")
     secret = make_api_key(db, project.id)
     db.commit()
     return {

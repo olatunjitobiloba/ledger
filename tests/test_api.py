@@ -95,6 +95,37 @@ class TestApiContracts(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 422)
 
+    def test_duplicate_project_name_returns_409_readable_cross_origin(self):
+        name = f"duplicate-{uuid.uuid4()}"
+        first = self.client.post(
+            "/v1/projects", headers=self.admin_headers, json={"name": name}
+        )
+        self.assertEqual(first.status_code, 201)
+        second = self.client.post(
+            "/v1/projects",
+            headers={**self.admin_headers, "Origin": "https://dashboard.example"},
+            json={"name": name},
+        )
+        self.assertEqual(second.status_code, 409)
+        self.assertIn("already exists", second.json()["detail"])
+        self.assertIn("access-control-allow-origin", second.headers)
+
+    def test_unhandled_error_returns_json_readable_cross_origin(self):
+        from unittest import mock
+
+        with mock.patch(
+            "ledger_api.main.make_api_key", side_effect=RuntimeError("boom")
+        ):
+            response = self.client.post(
+                "/v1/projects",
+                headers={**self.admin_headers, "Origin": "https://dashboard.example"},
+                json={"name": f"broken-{uuid.uuid4()}"},
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"detail": "internal server error"})
+        self.assertIn("access-control-allow-origin", response.headers)
+        self.assertNotIn("boom", response.text)
+
     def test_project_isolation(self):
         response = self.client.get("/v1/traces/not-this-project", headers=self.headers)
         self.assertEqual(response.status_code, 403)

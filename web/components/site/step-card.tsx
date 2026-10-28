@@ -178,10 +178,7 @@ export function StepCard({ step, index }: { step: Step; index: number }) {
           {number}
         </span>
         <div>
-          <span className="inline-flex rounded-lg bg-primary px-3 py-1.5 text-[0.6875rem] font-bold tracking-[0.08em] text-primary-foreground uppercase shadow-[0_8px_24px_-6px_rgb(0_211_147/0.65)]">
-            Step {index + 1}
-          </span>
-          <h3 className="mt-5 text-[1.375rem] leading-snug font-semibold tracking-tight sm:text-2xl">
+          <h3 className="text-[1.375rem] leading-snug font-semibold tracking-tight sm:text-2xl">
             {step.title}
           </h3>
           <p className="mt-3 max-w-md text-[0.9375rem] leading-relaxed text-muted-foreground">
