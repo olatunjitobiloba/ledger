@@ -26,6 +26,8 @@ LEDGER_DB_SSLROOTCERT=./certs/ledger-db-ca.crt
 LEDGER_AUTO_CREATE_SCHEMA=false
 LEDGER_ADMIN_TOKEN=long-random-secret
 LEDGER_BLOB_DIR=./data/blobs
+# Comma-separated browser origins allowed to call the API. Defaults to "*".
+# LEDGER_CORS_ORIGINS=https://your-frontend.example
 GROQ_API_KEY=gsk_...
 # Or set exactly one of these instead of Groq:
 # OPENAI_API_KEY=sk-...
