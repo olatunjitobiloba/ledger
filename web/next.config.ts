@@ -11,12 +11,6 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  // The Ledger API sends no CORS headers, so the dashboard reaches it through
-  // this same-origin proxy. Point LEDGER_API_URL at a deployed API in production.
-  async rewrites() {
-    const api = (process.env.LEDGER_API_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
-    return [{ source: "/api/ledger/:path*", destination: `${api}/:path*` }];
-  },
   async headers() {
     return [
       {

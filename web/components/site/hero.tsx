@@ -67,12 +67,10 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-5 pt-14 pb-20 sm:px-6 sm:pt-24 sm:pb-28">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-        
-
           <h1
             data-reveal
             data-hero
-            className="mt-6 text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.035em] text-balance sm:text-6xl lg:text-7xl"
+            className="text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.035em] text-balance sm:text-6xl lg:text-7xl"
           >
             Ship model changes{" "}
             <span className="text-muted-foreground">with proof, not hope.</span>

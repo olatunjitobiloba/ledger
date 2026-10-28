@@ -137,8 +137,64 @@
   }
 }
 
+/*
+ * Dashboard pages settle in with a short rise and a tight stagger. Pages are
+ * visited many times a day, so the motion is small and done in under 300ms.
+ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.stagger > * {
+  animation: rise-in 280ms var(--ease-out-strong) both;
+}
+.stagger > :nth-child(2) {
+  animation-delay: 40ms;
+}
+.stagger > :nth-child(3) {
+  animation-delay: 80ms;
+}
+.stagger > :nth-child(4) {
+  animation-delay: 120ms;
+}
+.stagger > :nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+
+.rise-in {
+  animation: rise-in 240ms var(--ease-out-strong) both;
+}
+
+/* Swapping one panel for another: the blur bridges the two states. */
+@keyframes swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+    filter: blur(4px);
+  }
+}
+
+.swap-in {
+  animation: swap-in 300ms var(--ease-out-strong) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  /* Keep the fade that aids comprehension; drop the movement. */
+  .stagger > *,
+  .rise-in,
+  .swap-in {
+    animation-name: fade-in;
   }
 }

@@ -2,13 +2,14 @@
 
 import { useSyncExternalStore } from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowPathIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
+  Alert02Icon,
+  CancelCircleIcon,
+  CheckmarkCircle02Icon,
   InformationCircleIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline"
+  Loading03Icon,
+} from "@hugeicons/core-free-icons"
 
 // The site toggles a `dark` class on <html> (see lib/theme-script.ts) rather
 // than using next-themes, so follow that class directly.
@@ -35,11 +36,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme}
       className="toaster group"
       icons={{
-        success: <CheckCircleIcon className="size-4" />,
-        info: <InformationCircleIcon className="size-4" />,
-        warning: <ExclamationTriangleIcon className="size-4" />,
-        error: <XCircleIcon className="size-4" />,
-        loading: <ArrowPathIcon className="size-4 animate-spin" />,
+        success: <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4 text-brand" />,
+        info: <HugeiconsIcon icon={InformationCircleIcon} className="size-4" />,
+        warning: <HugeiconsIcon icon={Alert02Icon} className="size-4 text-amber-500" />,
+        error: <HugeiconsIcon icon={CancelCircleIcon} className="size-4 text-destructive" />,
+        loading: <HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin" />,
       }}
       style={
         {

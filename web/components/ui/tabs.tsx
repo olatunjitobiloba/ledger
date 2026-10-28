@@ -68,6 +68,20 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
+/** A pill that glides to the active tab, sized by Base UI's --active-tab-* vars. */
+function TabsIndicator({ className, ...props }: TabsPrimitive.Indicator.Props) {
+  return (
+    <TabsPrimitive.Indicator
+      data-slot="tabs-indicator"
+      className={cn(
+        "absolute top-1/2 left-0 z-0 h-(--active-tab-height) w-(--active-tab-width) translate-x-(--active-tab-left) -translate-y-1/2 rounded-md bg-background shadow-sm transition-[translate,width] duration-300 ease-in-out-strong dark:bg-input/40",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   return (
     <TabsPrimitive.Panel
@@ -78,4 +92,4 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+export { Tabs, TabsList, TabsTrigger, TabsIndicator, TabsContent, tabsListVariants }

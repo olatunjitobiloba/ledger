@@ -29,3 +29,8 @@ export function formatDate(iso: string) {
     year: "numeric",
   })
 }
+
+/** Enough of a key to tell keys apart, never enough to use one. */
+export function maskKey(prefix: string) {
+  return `${prefix.slice(0, 8)}••••••••`
+}

@@ -1,3 +1,4 @@
+import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
 import type {
   Accepted,
   Alert,
@@ -8,8 +9,7 @@ import type {
   TracePage,
 } from "@/lib/ledger/types"
 
-/** Same-origin proxy to the Ledger API, see the rewrite in next.config.ts. */
-export const API_BASE = "/api/ledger"
+const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "").trim().replace(/\/+$/, "")
 
 export class LedgerError extends Error {
   constructor(
@@ -21,11 +21,56 @@ export class LedgerError extends Error {
   }
 }
 
-type RequestOptions = {
-  apiKey?: string
-  adminToken?: string
-  method?: "GET" | "POST"
-  body?: unknown
+export const http = axios.create({
+  baseURL: BACKEND_URL,
+  timeout: 20_000,
+  headers: { Accept: "application/json" },
+})
+
+/*
+ * A scaled-to-zero host answers with a 503 HTML "waking up" page until the
+ * API is running. Those requests never reached the API, so retrying them is
+ * safe, including POSTs.
+ */
+const WAKE_RETRIES = 12
+const WAKE_DELAY_MS = 2_500
+
+type RetryableConfig = InternalAxiosRequestConfig & { wakeAttempt?: number }
+
+function isWaking(error: AxiosError) {
+  const type = String(error.response?.headers?.["content-type"] ?? "")
+  return error.response?.status === 503 && type.includes("text/html")
+}
+
+http.interceptors.response.use(undefined, async (error: AxiosError) => {
+  const config = error.config as RetryableConfig | undefined
+  if (config && isWaking(error) && (config.wakeAttempt ?? 0) < WAKE_RETRIES) {
+    config.wakeAttempt = (config.wakeAttempt ?? 0) + 1
+    await new Promise((resolve) => setTimeout(resolve, WAKE_DELAY_MS))
+    return http.request(config)
+  }
+  if (!error.response && !isTimeout(error) && (await apiIsUp())) {
+    // The API answered /health, so this request did reach it and failed
+    // there. A server error sent without CORS headers looks like this.
+    return Promise.reject(
+      new LedgerError("The Ledger API ran into an error while handling this request.", 500)
+    )
+  }
+  return Promise.reject(toLedgerError(error))
+})
+
+function isTimeout(error: AxiosError) {
+  return error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT
+}
+
+/** Plain axios, not `http`, so a failing probe can't re-enter the interceptor. */
+async function apiIsUp() {
+  try {
+    const response = await axios.get(`${BACKEND_URL}/health`, { timeout: 5_000 })
+    return response.data?.status === "ok"
+  } catch {
+    return false
+  }
 }
 
 // FastAPI returns `detail` as a string, or a list of validation errors.
@@ -43,40 +88,59 @@ function describe(detail: unknown): string | null {
   return null
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = {}
-  if (options.apiKey) headers["X-API-Key"] = options.apiKey
-  if (options.adminToken) headers["X-Admin-Token"] = options.adminToken
-  if (options.body !== undefined) headers["Content-Type"] = "application/json"
-
-  let response: Response
-  try {
-    response = await fetch(`${API_BASE}${path}`, {
-      method: options.method ?? "GET",
-      headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      cache: "no-store",
-    })
-  } catch {
-    throw new LedgerError("Can't reach the Ledger API.", 0)
+function toLedgerError(error: AxiosError): LedgerError {
+  if (!error.response) {
+    if (isTimeout(error)) {
+      return new LedgerError("The Ledger API took too long to respond. Try again.", 0)
+    }
+    return new LedgerError("Can't reach the Ledger API. Check your connection and try again.", 0)
   }
 
-  const data = await response.json().catch(() => null)
-  if (!response.ok) {
-    // A 5xx without a JSON detail is either an unhandled API error or the
-    // proxy failing to reach the API at all.
-    const message =
-      describe(data?.detail) ??
-      (response.status >= 500
-        ? `The Ledger API failed (${response.status}). Check that it is running.`
-        : `Request failed (${response.status}).`)
-    throw new LedgerError(message, response.status)
+  const { status, data } = error.response
+  const detail = describe((data as { detail?: unknown } | null)?.detail)
+  if (detail) return new LedgerError(detail, status)
+  if (isWaking(error)) {
+    return new LedgerError("The Ledger API is still starting up. Try again in a moment.", status)
   }
-  return data as T
+  if (status >= 500) {
+    return new LedgerError("The Ledger API ran into a problem. Try again shortly.", status)
+  }
+  return new LedgerError(`Request failed (${status}).`, status)
 }
 
+type Auth = { apiKey?: string; adminToken?: string }
+
+function headers({ apiKey, adminToken }: Auth = {}) {
+  const result: Record<string, string> = {}
+  if (apiKey) result["X-API-Key"] = apiKey
+  if (adminToken) result["X-Admin-Token"] = adminToken
+  return result
+}
+
+function ensureConfigured() {
+  if (!BACKEND_URL) {
+    // Developers see the variable name in the console; users never do.
+    console.error("NEXT_PUBLIC_BACKEND_URL is not set. See web/env.sample.")
+    throw new LedgerError("This dashboard isn't connected to a Ledger API yet.", 0)
+  }
+}
+
+async function get<T>(path: string, auth?: Auth, params?: Record<string, unknown>) {
+  ensureConfigured()
+  const response = await http.get<T>(path, { headers: headers(auth), params })
+  return response.data
+}
+
+async function post<T>(path: string, body: unknown, auth?: Auth) {
+  ensureConfigured()
+  const response = await http.post<T>(path, body, { headers: headers(auth) })
+  return response.data
+}
+
+const segment = encodeURIComponent
+
 export const ledger = {
-  health: () => request<{ status: string }>("/health"),
+  health: () => get<{ status: string }>("/health"),
 
   createProject: (
     body: {
@@ -86,19 +150,15 @@ export const ledger = {
       retention_days: number
     },
     adminToken?: string
-  ) => request<CreatedProject>("/v1/projects", { method: "POST", body, adminToken }),
+  ) => post<CreatedProject>("/v1/projects", body, { adminToken }),
 
   createApiKey: (apiKey: string, name: string) =>
-    request<CreatedApiKey>("/v1/api-keys", { method: "POST", apiKey, body: { name } }),
+    post<CreatedApiKey>("/v1/api-keys", { name }, { apiKey }),
 
-  ingest: (apiKey: string, body: unknown) =>
-    request<Accepted>("/v1/ingest", { method: "POST", apiKey, body }),
+  ingest: (apiKey: string, body: unknown) => post<Accepted>("/v1/ingest", body, { apiKey }),
 
   traces: (apiKey: string, projectId: string, limit: number, offset: number) =>
-    request<TracePage>(
-      `/v1/traces/${encodeURIComponent(projectId)}?limit=${limit}&offset=${offset}`,
-      { apiKey }
-    ),
+    get<TracePage>(`/v1/traces/${segment(projectId)}`, { apiKey }, { limit, offset }),
 
   runEval: (
     apiKey: string,
@@ -109,11 +169,11 @@ export const ledger = {
       variance: number
       cases: { prompt: string; response: string }[]
     }
-  ) => request<Accepted>("/v1/eval/run", { method: "POST", apiKey, body }),
+  ) => post<Accepted>("/v1/eval/run", body, { apiKey }),
 
   evalRuns: (apiKey: string, projectId: string) =>
-    request<Items<EvalRun>>(`/v1/eval/runs/${encodeURIComponent(projectId)}`, { apiKey }),
+    get<Items<EvalRun>>(`/v1/eval/runs/${segment(projectId)}`, { apiKey }),
 
   alerts: (apiKey: string, projectId: string) =>
-    request<Items<Alert>>(`/v1/alerts/${encodeURIComponent(projectId)}`, { apiKey }),
+    get<Items<Alert>>(`/v1/alerts/${segment(projectId)}`, { apiKey }),
 }

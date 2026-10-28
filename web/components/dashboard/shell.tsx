@@ -1,83 +1,82 @@
 "use client"
 
-import type { ReactNode } from "react"
-import Link from "next/link"
+import { useEffect, type ReactNode } from "react"
+import { usePathname, useRouter } from "next/navigation"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Toaster } from "@/components/ui/sonner"
+import { Spinner } from "@/components/ui/spinner"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { LogoMark } from "@/components/site/logo"
 import { AppSidebar } from "@/components/dashboard/app-sidebar"
-import { GetStarted } from "@/components/dashboard/get-started"
-import { Onboarding } from "@/components/dashboard/onboarding"
-import { SecretReveal } from "@/components/dashboard/project-forms"
+import { currentPage } from "@/components/dashboard/nav"
 import { ProjectContext } from "@/lib/ledger/hooks"
-import { activeProject, projectStore, useProjectState } from "@/lib/ledger/projects"
+import { activeProject, useProjectState, type StoredProject } from "@/lib/ledger/projects"
 
-function LoadingShell() {
+function Loading() {
   return (
-    <div aria-busy="true" aria-label="Loading">
-      <Skeleton className="h-8 w-40" />
-      <Skeleton className="mt-3 h-4 w-28" />
-      <Skeleton className="mt-8 h-28 w-full rounded-2xl" />
-      <Skeleton className="mt-6 h-80 w-full rounded-2xl" />
+    <div className="flex min-h-dvh flex-1 items-center justify-center" aria-busy="true">
+      <Spinner className="size-5 text-muted-foreground" />
     </div>
   )
 }
 
+function Topbar({ project }: { project: StoredProject }) {
+  const page = currentPage(usePathname())
+  return (
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 md:rounded-t-xl items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-md supports-backdrop-filter:bg-background/65 sm:px-6">
+      <SidebarTrigger className="-ml-1.5 text-muted-foreground hover:text-foreground" />
+      <Separator orientation="vertical" className="my-auto h-4" />
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbItem className="min-w-0">
+            <span className="truncate">{project.name}</span>
+          </BreadcrumbItem>
+          {page && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">{page.label}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
+    </header>
+  )
+}
+
 export function DashboardShell({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const state = useProjectState()
   const active = state ? activeProject(state) : null
-  const revealed = state?.projects.find((p) => p.id === state.revealId)
 
-  let content: ReactNode
-  if (!state) content = <LoadingShell />
-  else if (!active) content = <Onboarding />
-  // Keyed so per-page state (pagination, open dialogs) resets on project switch.
-  else content = <div key={active.id}>{children}</div>
+  // Without a project there is nothing to show: set one up first.
+  useEffect(() => {
+    if (state && !active) router.replace("/onboarding")
+  }, [state, active, router])
+
+  if (!state || !active) return <Loading />
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delay={400}>
       <ProjectContext.Provider value={active}>
         <SidebarProvider>
-          <AppSidebar projects={state?.projects ?? []} active={active} />
-          <SidebarInset className="min-w-0 bg-card">
-            <header className="flex h-14 items-center gap-2 border-b px-4 md:hidden">
-              <SidebarTrigger />
-              <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-                <LogoMark className="size-6" />
-                Ledger
-              </Link>
-            </header>
-            <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
-              {content}
+          <AppSidebar projects={state.projects} active={active} guideDismissed={state.guideDismissed} />
+          {/* On desktop the inset is its own scroll area, so the top bar sticks inside it. */}
+          <SidebarInset className="min-w-0 md:peer-data-[variant=inset]:h-[calc(100dvh-1rem)] md:peer-data-[variant=inset]:overflow-y-auto md:peer-data-[variant=inset]:ring-1 md:peer-data-[variant=inset]:ring-border">
+            <Topbar project={active} />
+            {/* Keyed so per-page state (pagination, open sheets) resets on project switch. */}
+            <div key={active.id} className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-10">
+              {children}
             </div>
           </SidebarInset>
-          {active && !state?.guideDismissed && <GetStarted />}
         </SidebarProvider>
-
-        <Dialog open={!!revealed} onOpenChange={(open) => !open && projectStore.clearReveal()}>
-          <DialogContent className="sm:max-w-md" showCloseButton={false}>
-            <DialogHeader>
-              <DialogTitle>Project created</DialogTitle>
-              <DialogDescription>
-                Use this key with the SDK. The dashboard keeps a copy in this
-                browser to read {revealed?.name ?? "your project"}.
-              </DialogDescription>
-            </DialogHeader>
-            {revealed && (
-              <SecretReveal secret={revealed.apiKey} onDone={projectStore.clearReveal} />
-            )}
-          </DialogContent>
-        </Dialog>
-        <Toaster position="bottom-left" />
       </ProjectContext.Provider>
     </TooltipProvider>
   )
