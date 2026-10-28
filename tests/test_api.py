@@ -124,6 +124,22 @@ class TestApiContracts(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 202)
 
+    def test_cors_preflight_allows_browser_calls(self):
+        response = self.client.options(
+            "/v1/ingest",
+            headers={
+                "Origin": "https://frontend.example",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "x-api-key",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["access-control-allow-origin"], "*")
+        self.assertIn(
+            "x-api-key",
+            response.headers["access-control-allow-headers"].lower(),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
