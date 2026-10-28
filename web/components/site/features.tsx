@@ -175,7 +175,7 @@ function PrivacyVisual() {
         email → <span className="text-foreground">[REDACTED]</span>
       </div>
       <div className="truncate rounded-xl border bg-background/60 px-3 py-2.5 text-muted-foreground">
-        api_key → <span className="text-foreground">sha256:3b7f…e91a</span>
+        api_key → <span className="text-foreground">[HASHED]</span>
       </div>
     </div>
   )
@@ -183,10 +183,10 @@ function PrivacyVisual() {
 
 function EvidenceVisual() {
   const chain = [
-    { label: "Commit", value: "b1df370" },
-    { label: "Runtime", value: "python 3.12" },
-    { label: "Container", value: "sha256:7c1e…" },
-    { label: "Bundle", value: "evidence.zip", final: true },
+    { label: "Commit", value: "Pinned" },
+    { label: "Runtime", value: "Recorded" },
+    { label: "Container", value: "Fingerprinted" },
+    { label: "Bundle", value: "Ready to verify", final: true },
   ]
   return (
     <ol className="flex w-full max-w-4xl flex-col items-stretch gap-2 md:flex-row md:items-center">

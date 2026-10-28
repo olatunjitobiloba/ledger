@@ -41,7 +41,7 @@ export function Faq() {
         <div className="lg:sticky lg:top-28 lg:self-start">
           <h2
             data-reveal
-            className="mt-4 text-3xl leading-[1.1] font-semibold tracking-[-0.03em] sm:text-5xl"
+            className="text-3xl leading-[1.1] font-semibold tracking-[-0.03em] sm:text-5xl"
           >
             Questions
           </h2>
