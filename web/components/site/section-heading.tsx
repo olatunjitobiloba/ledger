@@ -13,7 +13,7 @@ export function SectionHeading({
     <div className={cn("mx-auto max-w-2xl text-center", className)}>
       <h2
         data-reveal
-        className="mt-4 text-3xl leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:text-5xl"
+        className="text-3xl leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:text-5xl"
       >
         {title}
       </h2>

@@ -13,7 +13,7 @@ import { gateOf } from "@/components/dashboard/primitives"
 
 // Flat colors and straight segments only: no gradients, no smoothing.
 const scoreConfig = {
-  score: { label: "Score", color: "var(--foreground)" },
+  score: { label: "Score", color: "var(--brand)" },
   gate: { label: "Gate", color: "var(--muted-foreground)" },
 } satisfies ChartConfig
 
@@ -32,9 +32,9 @@ export function scoredRuns(runs: EvalRun[]) {
 
 export function ScoreChart({ data }: { data: ReturnType<typeof scoredRuns> }) {
   return (
-    <ChartContainer config={scoreConfig} className="aspect-auto h-72 w-full">
+    <ChartContainer config={scoreConfig} className="aspect-auto h-64 w-full">
       <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
-        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.6} />
         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={10} minTickGap={16} />
         <YAxis
           domain={[0, 100]}
@@ -80,7 +80,7 @@ export function ScoreChart({ data }: { data: ReturnType<typeof scoredRuns> }) {
           stroke="var(--color-score)"
           strokeWidth={2}
           dot={{ r: 3, fill: "var(--color-score)", strokeWidth: 0 }}
-          activeDot={{ r: 4, strokeWidth: 0 }}
+          activeDot={{ r: 5, strokeWidth: 3, stroke: "var(--card)" }}
           isAnimationActive={false}
         />
       </LineChart>
@@ -89,7 +89,7 @@ export function ScoreChart({ data }: { data: ReturnType<typeof scoredRuns> }) {
 }
 
 const costConfig = {
-  cost: { label: "Cost", color: "var(--foreground)" },
+  cost: { label: "Cost", color: "var(--brand)" },
 } satisfies ChartConfig
 
 /**
@@ -106,10 +106,10 @@ export function CostChart({ traces }: { traces: Trace[] }) {
   return (
     <ChartContainer config={costConfig} className="aspect-auto h-48 w-full">
       <BarChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid vertical={false} strokeDasharray="3 3" strokeOpacity={0.6} />
         <XAxis dataKey="id" hide />
         <ChartTooltip
-          cursor={false}
+          cursor={{ fill: "var(--muted)", opacity: 0.6 }}
           content={
             <ChartTooltipContent
               hideIndicator
@@ -128,8 +128,9 @@ export function CostChart({ traces }: { traces: Trace[] }) {
         <Bar
           dataKey="cost"
           fill="var(--color-cost)"
-          fillOpacity={0.85}
-          radius={[2, 2, 0, 0]}
+          fillOpacity={0.8}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={28}
           isAnimationActive={false}
         />
       </BarChart>

@@ -26,12 +26,10 @@ type State = {
   projects: StoredProject[]
   activeId: string | null
   guideDismissed: boolean
-  /** A just-created project whose key the shell should show once. */
-  revealId: string | null
 }
 
 const STORAGE_KEY = "ledger.dashboard.v1"
-const EMPTY: State = { projects: [], activeId: null, guideDismissed: false, revealId: null }
+const EMPTY: State = { projects: [], activeId: null, guideDismissed: false }
 
 const listeners = new Set<() => void>()
 let cachedRaw: string | null | undefined
@@ -87,16 +85,12 @@ export function activeProject(state: State): StoredProject | null {
 }
 
 export const projectStore = {
-  add(project: StoredProject, { reveal = false } = {}) {
+  add(project: StoredProject) {
     write((state) => ({
       ...state,
       projects: [...state.projects.filter((p) => p.id !== project.id), project],
       activeId: project.id,
-      revealId: reveal ? project.id : state.revealId,
     }))
-  },
-  clearReveal() {
-    write((state) => ({ ...state, revealId: null }))
   },
   select(id: string) {
     write((state) => ({ ...state, activeId: id }))
