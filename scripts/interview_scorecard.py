@@ -42,4 +42,4 @@ def main(path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "interviews.csv")
+    main(sys.argv[1] if len(sys.argv) > 1 else "docs/hackathon/interviews.csv")
