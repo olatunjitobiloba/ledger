@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Know what an LLM eval run will cost before it runs</title>
+    <meta name="description" content="Spend planning and audit trail for teams running LLM evaluations.">
+    <style>
+      :root {
+        --ink: #1a1a1a;
+        --muted: #4a4a4a;
+        --paper: #fafaf7;
+        --rule: #d9d9d2;
+        --accent: #0b5d4b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 1.125rem/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: 40rem; margin: 0 auto; padding: 4rem 1.25rem 5rem; }
+      h1 {
+        font-size: clamp(2rem, 6vw, 3rem);
+        line-height: 1.1;
+        margin: 0 0 1.25rem;
+        letter-spacing: -0.02em;
+      }
+      h2 { font-size: 1.25rem; margin: 3rem 0 0.75rem; }
+      p, li { max-width: 62ch; }
+      .lede { font-size: 1.25rem; color: var(--muted); margin: 0 0 2rem; }
+      ol, ul { padding-left: 1.25rem; }
+      li { margin-bottom: 0.5rem; }
+      .cta {
+        display: inline-block;
+        background: var(--accent);
+        color: #fff;
+        padding: 0.875rem 1.5rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 600;
+        min-height: 44px;
+      }
+      .cta:hover { background: #084839; }
+      a:focus-visible, .cta:focus-visible {
+        outline: 3px solid #000;
+        outline-offset: 3px;
+      }
+      .note {
+        border-top: 1px solid var(--rule);
+        margin-top: 3rem;
+        padding-top: 1rem;
+        font-size: 1rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Know what an LLM eval run will cost before it runs.</h1>
+      <p class="lede">
+        Plan the spend, lock a budget, and keep a record of what each run
+        actually used. Built for small teams without a finance process for
+        model costs.
+      </p>
+
+      <p>
+        <a class="cta" href="mailto:YOUR_EMAIL?subject=Eval%20spend%20pilot">
+          Email me about a pilot
+        </a>
+      </p>
+
+      <h2>What it does today</h2>
+      <ol>
+        <li>Estimates the cost of an evaluation run from your own pricing file.</li>
+        <li>Reserves budget before the run, so two runs can't overspend one pool.</li>
+        <li>Links each result to the reservation that paid for it.</li>
+        <li>Reports which runs lack recoverable evidence.</li>
+      </ol>
+
+      <h2>What it does not do</h2>
+      <ul>
+        <li>It does not read your provider invoice.</li>
+        <li>It does not replace your billing dashboard.</li>
+        <li>It is early software, run by one person.</li>
+      </ul>
+
+      <p class="note">
+        I'm looking for a few teams to talk with. If you run LLM evaluations
+        and cost surprises you, I'd like 20 minutes of your time.
+      </p>
+    </main>
+  </body>
+</html>
