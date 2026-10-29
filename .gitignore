@@ -55,4 +55,5 @@ Thumbs.db
 # Local tooling / skills
 .kilo/
 .superpowers/
+.agents/
 
