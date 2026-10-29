@@ -105,7 +105,8 @@ Application
 - Cost estimates are approximate when provider-reported actual cost is
   unavailable.
 - Single-region Rumpty Cloud deployment; no multi-region failover.
-- No user-facing web dashboard; API and CLI access only.
+- No user-facing web dashboard at launch; the deployed web dashboard points
+  at the live API, and the submission path is API and CLI access.
 
 ## Demo commands
 
