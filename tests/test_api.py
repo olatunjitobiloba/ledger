@@ -171,6 +171,74 @@ class TestApiContracts(unittest.TestCase):
             response.headers["access-control-allow-headers"].lower(),
         )
 
+    def test_database_health_reports_ok(self):
+        response = self.client.get("/health/db")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"database": "ok"})
+
+
+class TestPostgresSchemaAlignment(unittest.TestCase):
+    def test_identifier_columns_use_the_uuid_type_from_the_migration(self):
+        # migrations/001_ledger_schema.sql declares every identifier as UUID.
+        # Declaring them as VARCHAR makes Postgres reject every insert with
+        # "column project_id is of type uuid but expression is of type
+        # character varying", so project creation returned 500 in production.
+        from sqlalchemy import Uuid
+
+        from ledger_api.models import Alert, ApiKey, EvalRun, Job, Project, Span, Trace
+
+        tables = [
+            Project.__table__,
+            ApiKey.__table__,
+            Trace.__table__,
+            Span.__table__,
+            Job.__table__,
+            EvalRun.__table__,
+            Alert.__table__,
+        ]
+        for table in tables:
+            for column in table.columns:
+                if column.primary_key or column.foreign_keys:
+                    self.assertIsInstance(
+                        column.type,
+                        Uuid,
+                        f"{table.name}.{column.name} must use the UUID type",
+                    )
+
+
+class TestDatabaseTlsConfig(unittest.TestCase):
+    def test_sqlite_uses_a_thread_safe_flag(self):
+        from ledger_api.database import connect_args
+
+        self.assertEqual(connect_args("sqlite:///ledger.db"), {"check_same_thread": False})
+
+    def test_missing_ca_certificate_keeps_tls_without_verification(self):
+        from ledger_api.database import connect_args
+
+        with tempfile.TemporaryDirectory() as directory:
+            missing = str(Path(directory) / "ledger-db-ca.crt")
+            args = connect_args(
+                "postgresql+psycopg://user:secret@host:5432/db",
+                "verify-full",
+                missing,
+            )
+        self.assertEqual(args, {"sslmode": "require"})
+
+    def test_existing_ca_certificate_enables_verification(self):
+        from ledger_api.database import connect_args
+
+        with tempfile.TemporaryDirectory() as directory:
+            certificate = Path(directory) / "ledger-db-ca.crt"
+            certificate.write_text("not a real certificate")
+            args = connect_args(
+                "postgresql+psycopg://user:secret@host:5432/db",
+                "verify-full",
+                str(certificate),
+            )
+        self.assertEqual(
+            args, {"sslmode": "verify-full", "sslrootcert": str(certificate)}
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

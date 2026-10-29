@@ -126,6 +126,10 @@ def process_ingest(db: Session, payload: dict[str, Any]) -> None:
                 total_cost_estimated=0.0,
             )
             db.add(trace)
+            # Spans carry a foreign key to the trace, so the trace must be
+            # flushed before spans are added or the unit of work may reorder
+            # the inserts.
+            db.flush()
         total_actual = total_estimated = 0.0
         for raw in raw_trace.get("spans", []):
             if db.get(Span, raw["span_id"]):

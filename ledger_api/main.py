@@ -12,8 +12,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, sta
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 
 from .config import ADMIN_TOKEN, AUTO_CREATE_SCHEMA, CORS_ORIGINS, POLL_SECONDS
@@ -61,6 +61,9 @@ app = FastAPI(title="Ledger API", version="0.1.0", lifespan=lifespan)
 async def json_errors(request: Request, call_next):
     try:
         return await call_next(request)
+    except DBAPIError:
+        logger.exception("database error on %s %s", request.method, request.url.path)
+        return JSONResponse({"detail": "database unavailable"}, status_code=503)
     except Exception:
         logger.exception("unhandled error on %s %s", request.method, request.url.path)
         return JSONResponse({"detail": "internal server error"}, status_code=500)
@@ -175,6 +178,20 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/health/db")
+def health_db(db: Session = Depends(db_session)):
+    """Read-only readiness check so a database fault is visible from outside."""
+    try:
+        db.execute(text("SELECT 1"))
+    except DBAPIError as exc:
+        logger.exception("database health check failed")
+        return JSONResponse(
+            {"database": "unavailable", "kind": type(exc.orig).__name__},
+            status_code=503,
+        )
+    return {"database": "ok"}
+
+
 @app.post("/v1/projects", status_code=status.HTTP_201_CREATED)
 def create_project(
     body: ProjectIn,
@@ -190,16 +207,19 @@ def create_project(
             re.compile(pattern)
         except re.error as exc:
             raise HTTPException(422, f"invalid redact pattern: {exc}")
+    if db.scalar(select(Project.id).where(Project.name == body.name)):
+        raise HTTPException(409, f"a project named {body.name!r} already exists")
     project = Project(**body.model_dump())
     db.add(project)
     try:
         db.flush()
+        secret = make_api_key(db, project.id)
+        db.commit()
     except IntegrityError:
-        # Project names are unique.
+        # Covers the race where another request inserted the same name between
+        # the check above and this insert.
         db.rollback()
         raise HTTPException(409, f"a project named {body.name!r} already exists")
-    secret = make_api_key(db, project.id)
-    db.commit()
     return {
         "project_id": project.id,
         "api_key": secret,
