@@ -117,7 +117,7 @@ jobs:
       - name: Test recovery-set validation
         run: python -m ledger.pipeline.recovery_set test
 
-            - name: Test evidence audit
+      - name: Test evidence audit
         run: python -m ledger.pipeline.evidence_audit test
 
   release-check:
