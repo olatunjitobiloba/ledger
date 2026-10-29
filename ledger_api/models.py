@@ -3,10 +3,27 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
+
+# The reviewed migration declares every identifier as UUID. The ORM must use
+# the same type or Postgres rejects inserts such as
+# "column project_id is of type uuid but expression is of type character varying".
+# as_uuid=False keeps the Python-side value a string, which is what the API and
+# the SQLite test schema already use.
+ID = Uuid(as_uuid=False)
 
 
 def uid() -> str:
@@ -19,9 +36,7 @@ def utcnow() -> dt.datetime:
 
 class Project(Base):
     __tablename__ = "projects"
-    id: Mapped[str] = mapped_column(
-        "project_id", String(36), primary_key=True, default=uid
-    )
+    id: Mapped[str] = mapped_column("project_id", ID, primary_key=True, default=uid)
     name: Mapped[str] = mapped_column(String(120), unique=True)
     tier: Mapped[str] = mapped_column(String(16), default="free")
     capture_prompt: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -34,11 +49,9 @@ class Project(Base):
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
-    id: Mapped[str] = mapped_column(
-        "api_key_id", String(36), primary_key=True, default=uid
-    )
+    id: Mapped[str] = mapped_column("api_key_id", ID, primary_key=True, default=uid)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.project_id"), index=True
+        ID, ForeignKey("projects.project_id"), index=True
     )
     name: Mapped[str] = mapped_column(String(120), default="default")
     key_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
@@ -51,9 +64,9 @@ class ApiKey(Base):
 
 class Trace(Base):
     __tablename__ = "traces"
-    id: Mapped[str] = mapped_column("trace_id", String(36), primary_key=True)
+    id: Mapped[str] = mapped_column("trace_id", ID, primary_key=True)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.project_id"), index=True
+        ID, ForeignKey("projects.project_id"), index=True
     )
     config_id: Mapped[str | None] = mapped_column(
         String(120), nullable=True, index=True
@@ -77,9 +90,11 @@ class Trace(Base):
 
 class Span(Base):
     __tablename__ = "spans"
-    id: Mapped[str] = mapped_column("span_id", String(36), primary_key=True)
-    trace_id: Mapped[str] = mapped_column(ForeignKey("traces.trace_id"), index=True)
-    parent_span_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    id: Mapped[str] = mapped_column("span_id", ID, primary_key=True)
+    trace_id: Mapped[str] = mapped_column(ID, ForeignKey("traces.trace_id"), index=True)
+    parent_span_id: Mapped[str | None] = mapped_column(
+        ID, ForeignKey("spans.span_id"), nullable=True
+    )
     type: Mapped[str] = mapped_column("span_type", String(32), default="llm_call")
     name: Mapped[str] = mapped_column(String(160), default="llm_call")
     started_at: Mapped[dt.datetime] = mapped_column(
@@ -104,7 +119,7 @@ class Span(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
-    id: Mapped[str] = mapped_column("job_id", String(36), primary_key=True, default=uid)
+    id: Mapped[str] = mapped_column("job_id", ID, primary_key=True, default=uid)
     kind: Mapped[str] = mapped_column(String(32))
     payload: Mapped[dict] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
@@ -120,11 +135,9 @@ class Job(Base):
 
 class EvalRun(Base):
     __tablename__ = "eval_runs"
-    id: Mapped[str] = mapped_column(
-        "eval_run_id", String(36), primary_key=True, default=uid
-    )
+    id: Mapped[str] = mapped_column("eval_run_id", ID, primary_key=True, default=uid)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.project_id"), index=True
+        ID, ForeignKey("projects.project_id"), index=True
     )
     dataset_version: Mapped[str] = mapped_column(String(120))
     config_id: Mapped[str] = mapped_column(String(120), index=True)
@@ -144,14 +157,12 @@ class EvalRun(Base):
 
 class Alert(Base):
     __tablename__ = "alerts"
-    id: Mapped[str] = mapped_column(
-        "alert_id", String(36), primary_key=True, default=uid
-    )
+    id: Mapped[str] = mapped_column("alert_id", ID, primary_key=True, default=uid)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.project_id"), index=True
+        ID, ForeignKey("projects.project_id"), index=True
     )
     eval_run_id: Mapped[str] = mapped_column(
-        ForeignKey("eval_runs.eval_run_id"), index=True
+        ID, ForeignKey("eval_runs.eval_run_id"), index=True
     )
     kind: Mapped[str] = mapped_column(String(64), default="regression")
     message: Mapped[str] = mapped_column(Text)
