@@ -1,10 +1,9 @@
 "use client"
 
-import { useRef, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Alert02Icon, ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { Alert02Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -22,7 +21,6 @@ export type CreateDraft = {
   retention: string
   capture: boolean
   patterns: string
-  adminToken: string
 }
 
 export type ConnectDraft = { name: string; projectId: string; apiKey: string }
@@ -32,7 +30,6 @@ export const emptyCreateDraft: CreateDraft = {
   retention: String(MAX_RETENTION),
   capture: false,
   patterns: "",
-  adminToken: "",
 }
 
 export const emptyConnectDraft: ConnectDraft = { name: "", projectId: "", apiKey: "" }
@@ -78,8 +75,6 @@ export function CreateProjectForm({
 }) {
   const [error, setError] = useState<Error | null>(null)
   const [pending, setPending] = useState(false)
-  const [tokenOpen, setTokenOpen] = useState(draft.adminToken !== "")
-  const tokenInput = useRef<HTMLInputElement>(null)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -87,15 +82,12 @@ export function CreateProjectForm({
     setError(null)
     const name = draft.name.trim()
     try {
-      const created = await ledger.createProject(
-        {
-          name,
-          capture_prompt: draft.capture,
-          redact_patterns: redactPatterns(draft),
-          retention_days: Number(draft.retention),
-        },
-        draft.adminToken.trim() || undefined
-      )
+      const created = await ledger.createProject({
+        name,
+        capture_prompt: draft.capture,
+        redact_patterns: redactPatterns(draft),
+        retention_days: Number(draft.retention),
+      })
       const project: StoredProject = {
         id: created.project_id,
         name,
@@ -119,17 +111,7 @@ export function CreateProjectForm({
           )
         )
       } else if (err instanceof LedgerError && err.status === 401) {
-        const sent = draft.adminToken.trim() !== ""
-        setError(
-          new Error(
-            sent
-              ? "That admin token wasn't accepted. Check it and try again."
-              : "This Ledger API needs an admin token to create projects. Enter it above."
-          )
-        )
-        // Open the token field and put the cursor in it.
-        setTokenOpen(true)
-        requestAnimationFrame(() => tokenInput.current?.focus())
+        setError(new Error("The Ledger API refused this dashboard's admin token."))
       } else {
         setError(err as Error)
       }
@@ -206,36 +188,6 @@ export function CreateProjectForm({
             </FieldDescription>
           </Field>
         )}
-        <Collapsible open={tokenOpen} onOpenChange={setTokenOpen}>
-          <CollapsibleTrigger className="group flex items-center gap-1.5 text-sm text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:text-foreground">
-            Need an admin token?
-            <HugeiconsIcon
-              icon={ArrowDown01Icon}
-              className="size-4 transition-transform duration-200 ease-out group-data-panel-open:rotate-180"
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height,opacity] duration-200 ease-out data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0">
-            <Field className="pt-3">
-              <FieldLabel htmlFor="project-admin" className="sr-only">
-                Admin token
-              </FieldLabel>
-              <Input
-                id="project-admin"
-                ref={tokenInput}
-                type="password"
-                autoComplete="off"
-                placeholder="Admin token"
-                className="h-10"
-                value={draft.adminToken}
-                onChange={(e) => onDraftChange({ adminToken: e.target.value })}
-              />
-              <FieldDescription>
-                Only if your Ledger API restricts who can create projects. It&apos;s
-                used once and never stored.
-              </FieldDescription>
-            </Field>
-          </CollapsibleContent>
-        </Collapsible>
       </FieldGroup>
       {error && <ErrorNotice title="Couldn't create the project" error={error} />}
       <SubmitButton pending={pending} idle="Create project" busy="Creating…" />

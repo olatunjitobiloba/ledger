@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios"
+import { ADMIN_TOKEN } from "@/constants"
 import type {
   Accepted,
   Alert,
@@ -142,15 +143,12 @@ const segment = encodeURIComponent
 export const ledger = {
   health: () => get<{ status: string }>("/health"),
 
-  createProject: (
-    body: {
-      name: string
-      capture_prompt: boolean
-      redact_patterns: string[]
-      retention_days: number
-    },
-    adminToken?: string
-  ) => post<CreatedProject>("/v1/projects", body, { adminToken }),
+  createProject: (body: {
+    name: string
+    capture_prompt: boolean
+    redact_patterns: string[]
+    retention_days: number
+  }) => post<CreatedProject>("/v1/projects", body, { adminToken: ADMIN_TOKEN }),
 
   createApiKey: (apiKey: string, name: string) =>
     post<CreatedApiKey>("/v1/api-keys", { name }, { apiKey }),
@@ -165,6 +163,7 @@ export const ledger = {
     body: {
       dataset_version: string
       config_id: string
+      model?: string
       baseline_score: number
       variance: number
       cases: { prompt: string; response: string }[]
