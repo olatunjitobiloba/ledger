@@ -174,7 +174,7 @@ function ScoreCard({ runs, loading }: { runs: EvalRun[]; loading: boolean }) {
           >
             {judging
               ? "Scores appear here as soon as the judge finishes."
-              : "Score a golden set against a baseline to see each run plotted against its gate."}
+              : "Score an answer key against a baseline to see each run plotted against its gate."}
           </EmptyState>
         )}
       </CardContent>
