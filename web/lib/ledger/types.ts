@@ -37,6 +37,7 @@ export type EvalRun = {
   eval_run_id: string
   dataset_version: string
   config_id: string
+  model: string | null
   baseline_score: number
   variance: number
   result_score: number | null

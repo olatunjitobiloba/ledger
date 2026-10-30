@@ -165,6 +165,7 @@ export const ledger = {
     body: {
       dataset_version: string
       config_id: string
+      model?: string
       baseline_score: number
       variance: number
       cases: { prompt: string; response: string }[]
