@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from .config import ADMIN_TOKEN, AUTO_CREATE_SCHEMA, CORS_ORIGINS, POLL_SECONDS
 from .database import Base, SessionLocal, engine
+from .migrate import apply_migrations
 from .models import Alert, EvalRun, Job, Project, Span, Trace
 from .services import authenticate, make_api_key, process_one_job, purge_expired
 
@@ -46,6 +47,12 @@ async def worker() -> None:
 async def lifespan(app: FastAPI):
     if AUTO_CREATE_SCHEMA:
         Base.metadata.create_all(engine)
+    # Apply any pending SQL migrations.  For Postgres this is the primary
+    # schema management path; for SQLite it catches additions like new columns.
+    try:
+        apply_migrations(engine)
+    except Exception:
+        logger.exception("migration runner failed — continuing with current schema")
     task = asyncio.create_task(worker())
     yield
     task.cancel()
