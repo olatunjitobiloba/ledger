@@ -82,7 +82,7 @@ export function Hero() {
             className="mt-5 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg"
           >
             Ledger records cost and risk on every AI call without slowing it
-            down, scores each release against your golden set, and blocks the
+            down, scores each release against your answer key, and blocks the
             ones that regress.
           </p>
 

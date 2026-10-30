@@ -386,7 +386,7 @@ export function EvaluationsView() {
     <div className="stagger flex flex-col gap-6">
       <PageHeader
         title="Evaluations"
-        description="Golden-set runs scored by the judge, newest first. Select a run to see its weakest cases."
+        description="Answer key runs scored by the judge, newest first. Select a run to see its weakest cases."
         actions={newButton()}
       />
 
