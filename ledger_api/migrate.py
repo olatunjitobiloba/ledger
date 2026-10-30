@@ -84,9 +84,13 @@ def apply_migrations(engine: Engine, *, migration_dir: Path = _MIGRATION_DIR) ->
             sql = path.read_text(encoding="utf-8")
             # Execute each statement individually so multi-statement files work.
             for stmt in sql.split(";"):
-                stmt = stmt.strip()
-                if stmt and not stmt.startswith("--"):
-                    conn.execute(text(stmt))
+                clean_lines = [
+                    line for line in stmt.splitlines()
+                    if not line.strip().startswith("--")
+                ]
+                clean_stmt = "\n".join(clean_lines).strip()
+                if clean_stmt:
+                    conn.execute(text(clean_stmt))
             conn.execute(
                 text("INSERT INTO schema_migrations (filename) VALUES (:f)"),
                 {"f": path.name},

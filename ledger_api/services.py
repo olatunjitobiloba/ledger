@@ -135,6 +135,12 @@ def process_ingest(db: Session, payload: dict[str, Any]) -> None:
             # flushed before spans are added or the unit of work may reorder
             # the inserts.
             db.flush()
+        else:
+            if not trace.model:
+                trace.model = raw_trace.get("model") or next(
+                    (s["model"] for s in raw_trace.get("spans", []) if s.get("model")),
+                    None,
+                )
         total_actual = total_estimated = 0.0
         for raw in raw_trace.get("spans", []):
             if db.get(Span, raw["span_id"]):

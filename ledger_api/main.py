@@ -254,11 +254,13 @@ def ingest(
 ):
     if isinstance(body, SdkIngestIn):
         span = body.span
+        active_model = span.model or "gpt-4o-mini"
         body = IngestIn(
             traces=[
                 TraceIn(
                     trace_id=body.trace_id or str(uuid.uuid4()),
                     status=body.status,
+                    model=active_model,
                     spans=[
                         SpanIn(
                             span_id=span.span_id or str(uuid.uuid4()),
@@ -267,7 +269,7 @@ def ingest(
                             name=span.name,
                             started_at=span.started_at,
                             ended_at=span.ended_at,
-                            model=span.model,
+                            model=active_model,
                             tokens_in=span.prompt_tokens,
                             tokens_out=span.completion_tokens,
                             cost_actual=span.cost_actual,
@@ -281,6 +283,13 @@ def ingest(
                 )
             ]
         )
+    for trace in body.traces:
+        trace_model = trace.model
+        for span in trace.spans:
+            if span.type == "llm_call" and not span.model:
+                span.model = trace_model or "gpt-4o-mini"
+        if not trace.model:
+            trace.model = next((s.model for s in trace.spans if s.model), "gpt-4o-mini")
     job = Job(
         kind="ingest",
         payload={
