@@ -73,7 +73,8 @@ class TestApiContracts(unittest.TestCase):
         import time
 
         stored = None
-        for _ in range(10):
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
             traces = self.client.get(
                 f"/v1/traces/{self.project['project_id']}", headers=self.headers
             ).json()["items"]
