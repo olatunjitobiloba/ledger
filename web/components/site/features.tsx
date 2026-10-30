@@ -80,7 +80,7 @@ function TelemetryVisual() {
         <span />
         <div className="flex justify-between">
           <span>0 ms</span>
-          <span>response returned · telemetry still flowing</span>
+          <span>response returned · AI call still recording</span>
         </div>
       </div>
     </div>
@@ -226,7 +226,7 @@ export function Features() {
           <Tile
             className="md:col-span-2"
             icon={ZapIcon}
-            title="Telemetry that never blocks"
+            title="Record each AI call without blocking"
             description="The SDK fires and forgets. Your app gets its response; Ledger gets tokens, latency, cost and risk, queued and retried in Postgres."
           >
             <TelemetryVisual />
@@ -234,7 +234,7 @@ export function Features() {
           <Tile
             icon={BalanceScaleIcon}
             title="A gate on every change"
-            description="Versioned golden sets, a judge at temperature 0, and an allowed drop. Any case past it blocks the release."
+            description="Versioned answer keys, a judge at temperature 0, and an allowed drop. Any case past it blocks the release."
           >
             <GateVisual />
           </Tile>

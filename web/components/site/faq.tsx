@@ -5,7 +5,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Reveal } from "@/components/site/reveal"
-import { site } from "@/lib/site"
 
 const faqs = [
   {
@@ -14,7 +13,7 @@ const faqs = [
   },
   {
     q: "What exactly does the evaluation gate check?",
-    a: "Each candidate is scored against a versioned golden set by a judge model at temperature 0. The gate compares per-case means with the baseline under an allowed absolute drop, and any case beyond it blocks the release. The release policy also checks a quality floor, security scan coverage and evidence completeness.",
+    a: "Each candidate is scored against a versioned answer key by a judge model at temperature 0. The gate compares per-case means with the baseline under an allowed absolute drop, and any case beyond it blocks the release. The release policy also checks a quality floor, security scan coverage and evidence completeness.",
   },
   {
     q: "Do you store my prompts and responses?",

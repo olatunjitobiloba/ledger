@@ -117,7 +117,12 @@ def process_ingest(db: Session, payload: dict[str, Any]) -> None:
                     if trace_prompt
                     else None
                 ),
-                model=raw_trace.get("model"),
+                # SDK ingests name the model on the span only.
+                model=raw_trace.get("model")
+                or next(
+                    (s["model"] for s in raw_trace.get("spans", []) if s.get("model")),
+                    None,
+                ),
                 rag_index_version=raw_trace.get("rag_index_version"),
                 status=raw_trace.get("status", "ok"),
                 started_at=raw_trace.get("started_at", utcnow()),

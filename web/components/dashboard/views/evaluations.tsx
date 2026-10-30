@@ -58,6 +58,7 @@ function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const { apiKey } = useActiveProject()
   const revalidate = useRevalidate()
   const [configId, setConfigId] = useState("")
+  const [model, setModel] = useState("")
   const [dataset, setDataset] = useState("v1")
   const [baseline, setBaseline] = useState("80")
   const [variance, setVariance] = useState("5")
@@ -76,6 +77,7 @@ function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     try {
       await ledger.runEval(apiKey, {
         config_id: configId.trim(),
+        model: model.trim() || undefined,
         dataset_version: dataset.trim(),
         baseline_score: Number(baseline),
         variance: Number(variance),
@@ -127,6 +129,19 @@ function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                 value={dataset}
                 onChange={(e) => setDataset(e.target.value)}
               />
+            </Field>
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="eval-model">
+                Model <span className="font-normal text-muted-foreground">(optional)</span>
+              </FieldLabel>
+              <Input
+                id="eval-model"
+                maxLength={120}
+                placeholder="gpt-4o-mini"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+              <FieldDescription>The model that produced these responses.</FieldDescription>
             </Field>
             <Field>
               <FieldLabel htmlFor="eval-baseline">Baseline score</FieldLabel>
@@ -275,7 +290,10 @@ function RunSheet({ run, onClose }: { run: EvalRun | null; onClose: () => void }
                 {r.config_id}
                 <EvalResult run={r} />
               </SheetTitle>
-              <SheetDescription>Dataset {r.dataset_version}</SheetDescription>
+              <SheetDescription>
+                Dataset {r.dataset_version}
+                {r.model && ` · ${r.model}`}
+              </SheetDescription>
             </SheetHeader>
 
             <div className="flex flex-col gap-6 overflow-y-auto p-5">
@@ -368,7 +386,7 @@ export function EvaluationsView() {
     <div className="stagger flex flex-col gap-6">
       <PageHeader
         title="Evaluations"
-        description="Golden-set runs scored by the judge, newest first. Select a run to see its weakest cases."
+        description="Answer key runs scored by the judge, newest first. Select a run to see its weakest cases."
         actions={newButton()}
       />
 
@@ -391,6 +409,7 @@ export function EvaluationsView() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-5">Config</TableHead>
+                <TableHead className="hidden md:table-cell">Model</TableHead>
                 <TableHead className="hidden sm:table-cell">Dataset</TableHead>
                 <TableHead className="text-right">Score</TableHead>
                 <TableHead className="hidden text-right sm:table-cell">Gate</TableHead>
@@ -412,6 +431,7 @@ export function EvaluationsView() {
                   }}
                 >
                   <TableCell className="pl-5 font-medium">{run.config_id}</TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{run.model ?? "—"}</TableCell>
                   <TableCell className="hidden text-muted-foreground sm:table-cell">{run.dataset_version}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
                     {formatScore(run.result_score)}
