@@ -54,6 +54,14 @@ verification command that runs offline.
 | Key diagnostics detect provider mismatch | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestKeyDiagnostics -v` |
 | Dotenv loader is safe and correct | [judge.py](../../../judge.py) | `python -m unittest tests.test_judge.TestLoadDotenv -v` |
 
+## Customer Validation
+
+| Claim | Source | Verification |
+| --- | --- | --- |
+| Objective scorecard enforces evidence thresholds | [scripts/interview_scorecard.py](../../scripts/interview_scorecard.py) | `python -m unittest tests.test_interview_scorecard -v` |
+| Exit code gates deployment on customer validation | [scripts/interview_scorecard.py](../../scripts/interview_scorecard.py) | `python scripts/interview_scorecard.py score` |
+| Outreach funnel tracks follow-ups and cross-references interviews | [scripts/outreach_tracker.py](../../scripts/outreach_tracker.py) | `python -m unittest tests.test_outreach_tracker -v` |
+
 ## Infrastructure
 
 | Claim | Source | Verification |

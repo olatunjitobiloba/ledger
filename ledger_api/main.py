@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from .config import ADMIN_TOKEN, AUTO_CREATE_SCHEMA, CORS_ORIGINS, POLL_SECONDS
 from .database import Base, SessionLocal, engine
+from .migrate import apply_migrations
 from .models import Alert, EvalRun, Job, Project, Span, Trace
 from .services import authenticate, make_api_key, process_one_job, purge_expired
 
@@ -46,6 +47,12 @@ async def worker() -> None:
 async def lifespan(app: FastAPI):
     if AUTO_CREATE_SCHEMA:
         Base.metadata.create_all(engine)
+    # Apply any pending SQL migrations.  For Postgres this is the primary
+    # schema management path; for SQLite it catches additions like new columns.
+    try:
+        apply_migrations(engine)
+    except Exception:
+        logger.exception("migration runner failed — continuing with current schema")
     task = asyncio.create_task(worker())
     yield
     task.cancel()
@@ -159,6 +166,7 @@ class EvalCase(BaseModel):
 class EvalIn(BaseModel):
     dataset_version: str
     config_id: str
+    model: str | None = Field(default=None, max_length=120)
     baseline_score: float = Field(ge=0, le=100)
     variance: float = Field(ge=0, le=100)
     cases: list[EvalCase] = Field(min_length=1, max_length=500)
@@ -246,11 +254,13 @@ def ingest(
 ):
     if isinstance(body, SdkIngestIn):
         span = body.span
+        active_model = span.model or "gpt-4o-mini"
         body = IngestIn(
             traces=[
                 TraceIn(
                     trace_id=body.trace_id or str(uuid.uuid4()),
                     status=body.status,
+                    model=active_model,
                     spans=[
                         SpanIn(
                             span_id=span.span_id or str(uuid.uuid4()),
@@ -259,7 +269,7 @@ def ingest(
                             name=span.name,
                             started_at=span.started_at,
                             ended_at=span.ended_at,
-                            model=span.model,
+                            model=active_model,
                             tokens_in=span.prompt_tokens,
                             tokens_out=span.completion_tokens,
                             cost_actual=span.cost_actual,
@@ -273,6 +283,13 @@ def ingest(
                 )
             ]
         )
+    for trace in body.traces:
+        trace_model = trace.model
+        for span in trace.spans:
+            if span.type == "llm_call" and not span.model:
+                span.model = trace_model or "gpt-4o-mini"
+        if not trace.model:
+            trace.model = next((s.model for s in trace.spans if s.model), "gpt-4o-mini")
     job = Job(
         kind="ingest",
         payload={
@@ -334,6 +351,7 @@ def eval_run(
         project_id=project.id,
         dataset_version=body.dataset_version,
         config_id=body.config_id,
+        model=body.model,
         baseline_score=body.baseline_score,
         variance=body.variance,
     )
@@ -371,6 +389,7 @@ def eval_runs(
                 "eval_run_id": r.id,
                 "dataset_version": r.dataset_version,
                 "config_id": r.config_id,
+                "model": r.model,
                 "baseline_score": r.baseline_score,
                 "variance": r.variance,
                 "result_score": r.result_score,

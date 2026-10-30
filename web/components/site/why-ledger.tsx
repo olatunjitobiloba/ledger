@@ -17,7 +17,7 @@ const steps: Step[] = [
   {
     title: "Every call gets recorded",
     description:
-      "The SDK hands telemetry off and returns. Tokens, latency, cost and injection risk land in a Postgres queue your users never wait on.",
+      "The SDK records each AI call and returns. Tokens, latency, cost and injection risk land in a Postgres queue your users never wait on.",
     center: { badge: "API", title: "generate_response", subtitle: "202 Accepted · queued" },
     chips: [
       { label: "Latency", icon: Clock01Icon, angle: -135, radius: 210 },
@@ -28,10 +28,10 @@ const steps: Step[] = [
   {
     title: "Every change gets scored",
     description:
-      "Candidates run against a versioned golden set, judged at temperature 0. Any case that drops past your allowed margin blocks the release.",
+      "Candidates run against a versioned answer key, judged at temperature 0. Any case that drops past your allowed margin blocks the release.",
     center: { badge: "v2", title: "Candidate 4e1a07", subtitle: "48 trials scored" },
     chips: [
-      { label: "Golden set", icon: Database01Icon, angle: -135, radius: 210 },
+      { label: "Answer key", icon: Database01Icon, angle: -135, radius: 210 },
       { label: "Judge", icon: BalanceScaleIcon, angle: -28, radius: 190 },
       { label: "Regression gate", icon: CheckmarkCircle02Icon, angle: 122, radius: 170 },
     ],

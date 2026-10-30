@@ -47,7 +47,6 @@ export function Onboarding() {
   // as soon as the page is hidden so they never linger in the DOM.
   useLayoutEffect(
     () => () => {
-      setCreate((draft) => ({ ...draft, adminToken: "" }))
       setConnect((draft) => ({ ...draft, apiKey: "" }))
     },
     []

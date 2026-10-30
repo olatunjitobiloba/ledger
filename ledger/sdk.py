@@ -33,7 +33,12 @@ class Ledger:
         """Schedule delivery and return immediately; never blocks the host LLM call."""
         sanitized = copy.deepcopy(traces)
         for trace in sanitized:
+            trace_model = trace.get("model")
             for span in trace.get("spans", []):
+                # Ensure model is always populated on llm_call spans before ingest
+                if span.get("span_type", span.get("type", "llm_call")) == "llm_call":
+                    if not span.get("model"):
+                        span["model"] = trace_model or "gpt-4o-mini"
                 if not self.capture_prompt:
                     span.pop("prompt", None)
                     span.pop("response", None)
@@ -73,4 +78,7 @@ class Ledger:
     @staticmethod
     def span(**values: Any) -> dict[str, Any]:
         values.setdefault("span_id", str(uuid.uuid4()))
+        values.setdefault("span_type", "llm_call")
+        if values.get("span_type") == "llm_call" and not values.get("model"):
+            values["model"] = "gpt-4o-mini"
         return values

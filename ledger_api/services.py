@@ -117,7 +117,12 @@ def process_ingest(db: Session, payload: dict[str, Any]) -> None:
                     if trace_prompt
                     else None
                 ),
-                model=raw_trace.get("model"),
+                # SDK ingests name the model on the span only.
+                model=raw_trace.get("model")
+                or next(
+                    (s["model"] for s in raw_trace.get("spans", []) if s.get("model")),
+                    None,
+                ),
                 rag_index_version=raw_trace.get("rag_index_version"),
                 status=raw_trace.get("status", "ok"),
                 started_at=raw_trace.get("started_at", utcnow()),
@@ -130,6 +135,12 @@ def process_ingest(db: Session, payload: dict[str, Any]) -> None:
             # flushed before spans are added or the unit of work may reorder
             # the inserts.
             db.flush()
+        else:
+            if not trace.model:
+                trace.model = raw_trace.get("model") or next(
+                    (s["model"] for s in raw_trace.get("spans", []) if s.get("model")),
+                    None,
+                )
         total_actual = total_estimated = 0.0
         for raw in raw_trace.get("spans", []):
             if db.get(Span, raw["span_id"]):
