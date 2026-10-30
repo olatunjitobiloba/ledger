@@ -43,14 +43,9 @@ export function Onboarding() {
   const [create, setCreate] = useState<CreateDraft>(emptyCreateDraft)
   const [connect, setConnect] = useState<ConnectDraft>(emptyConnectDraft)
 
-  // Next keeps visited pages alive while hidden. Drop the secrets typed here
-  // as soon as the page is hidden so they never linger in the DOM.
-  useLayoutEffect(
-    () => () => {
-      setConnect((draft) => ({ ...draft, apiKey: "" }))
-    },
-    []
-  )
+  // Next keeps visited pages alive while hidden. Drop the API key typed here
+  // as soon as the page is hidden so it never lingers in the DOM.
+  useLayoutEffect(() => () => setConnect((draft) => ({ ...draft, apiKey: "" })), [])
 
   function finish(message: string, description?: string) {
     setCreate(emptyCreateDraft)
