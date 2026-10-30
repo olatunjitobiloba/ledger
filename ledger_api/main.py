@@ -159,6 +159,7 @@ class EvalCase(BaseModel):
 class EvalIn(BaseModel):
     dataset_version: str
     config_id: str
+    model: str | None = Field(default=None, max_length=120)
     baseline_score: float = Field(ge=0, le=100)
     variance: float = Field(ge=0, le=100)
     cases: list[EvalCase] = Field(min_length=1, max_length=500)
@@ -334,6 +335,7 @@ def eval_run(
         project_id=project.id,
         dataset_version=body.dataset_version,
         config_id=body.config_id,
+        model=body.model,
         baseline_score=body.baseline_score,
         variance=body.variance,
     )
@@ -371,6 +373,7 @@ def eval_runs(
                 "eval_run_id": r.id,
                 "dataset_version": r.dataset_version,
                 "config_id": r.config_id,
+                "model": r.model,
                 "baseline_score": r.baseline_score,
                 "variance": r.variance,
                 "result_score": r.result_score,

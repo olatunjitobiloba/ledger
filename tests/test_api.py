@@ -73,7 +73,8 @@ class TestApiContracts(unittest.TestCase):
         import time
 
         stored = None
-        for _ in range(10):
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
             traces = self.client.get(
                 f"/v1/traces/{self.project['project_id']}", headers=self.headers
             ).json()["items"]
@@ -154,6 +155,55 @@ class TestApiContracts(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 202)
+
+    def test_sdk_span_model_is_recorded_on_the_trace(self):
+        trace_id = str(uuid.uuid4())
+        response = self.client.post(
+            "/v1/ingest",
+            headers=self.headers,
+            json={
+                "trace_id": trace_id,
+                "span": {
+                    "name": "generate_response",
+                    "started_at": "2026-10-01T23:00:00Z",
+                    "model": "gpt-4o-mini",
+                },
+            },
+        )
+        self.assertEqual(response.status_code, 202)
+        import time
+
+        stored = None
+        for _ in range(10):
+            traces = self.client.get(
+                f"/v1/traces/{self.project['project_id']}", headers=self.headers
+            ).json()["items"]
+            stored = next((t for t in traces if t["trace_id"] == trace_id), None)
+            if stored:
+                break
+            time.sleep(0.2)
+        assert stored is not None
+        self.assertEqual(stored["model"], "gpt-4o-mini")
+
+    def test_eval_run_records_its_model(self):
+        response = self.client.post(
+            "/v1/eval/run",
+            headers=self.headers,
+            json={
+                "dataset_version": "v1",
+                "config_id": "prompt-v7",
+                "model": "gpt-4o-mini",
+                "baseline_score": 80,
+                "variance": 5,
+                "cases": [{"prompt": "hi", "response": "hello"}],
+            },
+        )
+        self.assertEqual(response.status_code, 202)
+        runs = self.client.get(
+            f"/v1/eval/runs/{self.project['project_id']}", headers=self.headers
+        ).json()["items"]
+        run = next(r for r in runs if r["eval_run_id"] == response.json()["eval_run_id"])
+        self.assertEqual(run["model"], "gpt-4o-mini")
 
     def test_cors_preflight_allows_browser_calls(self):
         response = self.client.options(

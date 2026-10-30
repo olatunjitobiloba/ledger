@@ -141,6 +141,7 @@ class EvalRun(Base):
     )
     dataset_version: Mapped[str] = mapped_column(String(120))
     config_id: Mapped[str] = mapped_column(String(120), index=True)
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
     baseline_score: Mapped[float] = mapped_column(Float)
     variance: Mapped[float] = mapped_column(Float)
     result_score: Mapped[float | None] = mapped_column(Float, nullable=True)

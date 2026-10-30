@@ -179,6 +179,8 @@ export const ledger = {
     body: {
       dataset_version: string
       config_id: string
+      /** Records which model produced the responses; the API keeps it nullable. */
+      model?: string | null
       baseline_score: number
       variance: number
       cases: { prompt: string; response: string }[]
