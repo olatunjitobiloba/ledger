@@ -57,7 +57,7 @@ jobs:
         run: python -m unittest tests.test_judge tests.test_judge_groq tests.test_api -v
 
       - name: Test compatibility and stable CLI
-        run: python -m unittest tests.test_compatibility tests.test_cli -v
+        run: python -m unittest tests.test_compatibility tests.test_cli tests.test_interview_scorecard tests.test_outreach_tracker -v
 
 
       - name: Test cost attribution
