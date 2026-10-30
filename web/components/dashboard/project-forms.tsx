@@ -177,7 +177,7 @@ export function CreateProjectForm({
           <FieldDescription>The free tier allows up to {MAX_RETENTION} days.</FieldDescription>
         </Field>
         <Field orientation="horizontal" className="items-start justify-between gap-6">
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1"> 
             <FieldLabel htmlFor="project-capture">Capture prompts</FieldLabel>
             <FieldDescription>
               Store prompt and response text. When off, Ledger keeps only
