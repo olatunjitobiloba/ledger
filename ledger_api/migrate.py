@@ -42,6 +42,32 @@ def apply_migrations(engine: Engine, *, migration_dir: Path = _MIGRATION_DIR) ->
             ).fetchall()
         }
 
+        # Bootstrap: if the database already has the base schema (from a manual
+        # run of 001_ledger_schema.sql before this runner existed) seed the
+        # tracking table so 001 is never re-applied.
+        if not applied:
+            has_projects = conn.execute(
+                text(
+                    "SELECT EXISTS ("
+                    "  SELECT 1 FROM information_schema.tables"
+                    "  WHERE table_name = 'projects'"
+                    ")"
+                )
+            ).scalar()
+            if has_projects:
+                conn.execute(
+                    text(
+                        "INSERT INTO schema_migrations (filename)"
+                        " VALUES ('001_ledger_schema.sql')"
+                        " ON CONFLICT DO NOTHING"
+                    )
+                )
+                applied.add("001_ledger_schema.sql")
+                logger.info(
+                    "seeded schema_migrations with 001_ledger_schema.sql "
+                    "(tables already exist)"
+                )
+
         # Discover and sort migration files.
         files: list[tuple[int, Path]] = []
         for path in sorted(migration_dir.iterdir()):
