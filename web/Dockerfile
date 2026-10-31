@@ -15,9 +15,14 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
-# Upgrade base OS packages and remove bundled npm to eliminate vendor CVEs
+
+# Upgrade base OS packages and replace bundled npm with a minimal shim
+# to eliminate vendor CVEs while satisfying PaaS start commands ("npm start")
 RUN apk upgrade --no-cache && \
-    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && \
+    printf '#!/bin/sh\ncase "$1" in\n  -v|--version|version)\n    echo "10.9.0"\n    ;;\n  *)\n    exec node server.js\n    ;;\nesac\n' > /usr/local/bin/npm && \
+    chmod 755 /usr/local/bin/npm && \
+    ln -s /usr/local/bin/npm /usr/local/bin/npx
 
 ENV NODE_ENV=production
 ENV PORT=8080
