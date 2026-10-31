@@ -35,8 +35,16 @@ eval_results/
 *.jsonl
 
 # Frontend is deployed separately
-web/
-node_modules/
+web
+web/**
+**/web
+node_modules
+**/node_modules
+package*.json
+**/package*.json
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
 
 # Documentation and skills are not needed at runtime
 docs/
