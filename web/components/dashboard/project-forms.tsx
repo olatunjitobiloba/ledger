@@ -111,8 +111,8 @@ export function CreateProjectForm({
           )
         )
       } else if (err instanceof LedgerError && err.status === 401) {
-        // The browser never handles the token now: this means the dashboard's
-        // own copy doesn't match the API's, which only its operator can fix.
+        // The dashboard's build-time token doesn't match the API's, which only
+        // its operator can fix.
         setError(
           new Error(
             "This dashboard isn't authorised to create projects. Ask whoever runs it to check its admin token."
