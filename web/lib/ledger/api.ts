@@ -108,11 +108,18 @@ function toLedgerError(error: AxiosError): LedgerError {
   return new LedgerError(`Request failed (${status}).`, status)
 }
 
-type Auth = { apiKey?: string }
+/*
+ * Sent as X-Admin-Token when creating projects. It's inlined into the client
+ * bundle at build time, so anyone who loads the dashboard can read it.
+ */
+const ADMIN_TOKEN = (process.env.NEXT_PUBLIC_LEDGER_ADMIN_TOKEN ?? "").trim()
 
-function headers({ apiKey }: Auth = {}) {
+type Auth = { apiKey?: string; adminToken?: string }
+
+function headers({ apiKey, adminToken }: Auth = {}) {
   const result: Record<string, string> = {}
   if (apiKey) result["X-API-Key"] = apiKey
+  if (adminToken) result["X-Admin-Token"] = adminToken
   return result
 }
 
@@ -143,28 +150,13 @@ export type CreateProjectBody = {
   retention_days: number
 }
 
-/*
- * Creating a project needs the API's admin token, which only this dashboard's
- * server holds. So the call goes to our own /api/projects route instead of the
- * API, with none of the browser-facing auth or interceptors.
- */
-async function createProject(body: CreateProjectBody) {
-  try {
-    const response = await axios.post<CreatedProject>("/api/projects", body, {
-      headers: { Accept: "application/json" },
-    })
-    return response.data
-  } catch (error) {
-    throw axios.isAxiosError(error) ? toLedgerError(error) : error
-  }
-}
-
 const segment = encodeURIComponent
 
 export const ledger = {
   health: () => get<{ status: string }>("/health"),
 
-  createProject,
+  createProject: (body: CreateProjectBody) =>
+    post<CreatedProject>("/v1/projects", body, { adminToken: ADMIN_TOKEN }),
 
   createApiKey: (apiKey: string, name: string) =>
     post<CreatedApiKey>("/v1/api-keys", { name }, { apiKey }),
