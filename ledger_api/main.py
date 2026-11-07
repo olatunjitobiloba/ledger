@@ -38,6 +38,8 @@ async def worker() -> None:
         db = SessionLocal()
         try:
             process_one_job(db)
+        except Exception:
+            logger.exception("worker encountered unhandled error in job processing")
         finally:
             db.close()
         await asyncio.sleep(POLL_SECONDS)

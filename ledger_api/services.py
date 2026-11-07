@@ -253,10 +253,17 @@ def process_one_job(db: Session) -> bool:
         else:
             raise ValueError(f"unknown job kind {job.kind}")
         job.status, job.updated_at = "done", utcnow()
+        db.commit()
     except Exception as exc:
-        job.error, job.updated_at = str(exc), utcnow()
-        job.status = "dead_letter" if job.attempts >= 3 else "queued"
-    db.commit()
+        db.rollback()
+        try:
+            failed_job = db.get(Job, job.id)
+            if failed_job:
+                failed_job.error, failed_job.updated_at = str(exc), utcnow()
+                failed_job.status = "dead_letter" if failed_job.attempts >= 3 else "queued"
+                db.commit()
+        except Exception:
+            db.rollback()
     return True
 
 

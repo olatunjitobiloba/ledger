@@ -51,7 +51,7 @@ export function Onboarding() {
     setCreate(emptyCreateDraft)
     setConnect(emptyConnectDraft)
     toast.success(message, { description })
-    router.push("/dashboard")
+    window.location.assign("/dashboard")
   }
 
   return (
